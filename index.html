@@ -1209,10 +1209,23 @@
                 <div class="feat-item" onclick="toggleFeat(this)">
                     <span class="feat-icon">🏊</span> Amenities
                 </div>
-                <div class="feat-item" onclick="toggleFeat(this)">
+                <div class="feat-item" id="adminFeat" onclick="toggleAdminFeat(this)">
                     <span class="feat-icon">🏢</span> Administración
                 </div>
             </div>
+
+            <!-- Panel Administración -->
+            <div id="adminPanel" style="display:none; flex-direction:column; gap:10px; margin-top:8px; background:#eff6ff; border:2px solid #bfdbfe; border-radius:10px; padding:12px;">
+                <div>
+                    <div class="mini-label">Empresa administradora</div>
+                    <input type="text" id="adminEmpresa" placeholder="Nombre de la empresa…" oninput="autoSave()" style="width:100%;padding:9px 11px;border:2px solid #bfdbfe;border-radius:8px;font-size:14px;color:#1e293b;background:white;">
+                </div>
+                <div>
+                    <div class="mini-label">Teléfono administración</div>
+                    <input type="tel" id="adminTelefono" placeholder="Ej. 91 234 56 78" oninput="autoSave()" style="width:100%;padding:9px 11px;border:2px solid #bfdbfe;border-radius:8px;font-size:14px;color:#1e293b;background:white;">
+                </div>
+            </div>
+
             <div class="otros-row">
                 <div class="feat-item" id="otrosFeat" onclick="toggleOtros()">
                     <span class="feat-icon">➕</span> Otros
@@ -1565,6 +1578,18 @@ function init() {
 // ─────────────────────────────────────────────
 function toggleFeat(el) {
     el.classList.toggle('on');
+    autoSave();
+}
+
+function toggleAdminFeat(el) {
+    el.classList.toggle('on');
+    const isOn = el.classList.contains('on');
+    const panel = document.getElementById('adminPanel');
+    panel.style.display = isOn ? 'flex' : 'none';
+    if (!isOn) {
+        document.getElementById('adminEmpresa').value = '';
+        document.getElementById('adminTelefono').value = '';
+    }
     autoSave();
 }
 
@@ -2030,9 +2055,13 @@ function _doSave() {
     const tipoOtrosOn  = document.getElementById('tipoOtrosFeat')?.classList.contains('on') ?? false;
     const tipoOtrosTags = getTipoOtrosTags();
     const feats        = [...document.querySelectorAll('#featGrid .feat-item.on')]
+                          .filter(el => el.id !== 'adminFeat')
                           .map(el => el.textContent.trim());
     const otrosOn      = document.getElementById('otrosFeat').classList.contains('on');
     const otrosTags    = getOtrosTags();
+    const adminOn      = document.getElementById('adminFeat').classList.contains('on');
+    const adminEmpresa = document.getElementById('adminEmpresa').value;
+    const adminTelefono = document.getElementById('adminTelefono').value;
 
     const state = {
         calle:      document.getElementById('fCalle').value,
@@ -2043,6 +2072,9 @@ function _doSave() {
         feats,
         otrosOn,
         otrosTags,
+        adminOn,
+        adminEmpresa,
+        adminTelefono,
         notes:     document.getElementById('fEdificioNotes').value,
         floors:    []
     };
@@ -2116,6 +2148,7 @@ function restoreState() {
         // Restore features
         if (s.feats?.length) {
             document.querySelectorAll('#featGrid .feat-item').forEach(el => {
+                if (el.id === 'adminFeat') return; // handled separately
                 const label = el.textContent.trim();
                 if (s.feats.some(f => label.includes(f.replace(/^[^\wÀ-ſ]*/, '').trim().split(' ')[0]))) {
                     el.classList.add('on');
@@ -2129,6 +2162,12 @@ function restoreState() {
             feat.querySelector('input').checked = true;
             wrap.classList.add('show');
             (s.otrosTags ?? (s.otrosVal ? [s.otrosVal] : [])).forEach(t => addOtrosTag(t));
+        }
+        if (s.adminOn) {
+            document.getElementById('adminFeat').classList.add('on');
+            document.getElementById('adminPanel').style.display = 'flex';
+            document.getElementById('adminEmpresa').value = s.adminEmpresa ?? '';
+            document.getElementById('adminTelefono').value = s.adminTelefono ?? '';
         }
 
         // Restore floors
@@ -2228,10 +2267,14 @@ async function sendToServer() {
     const tipoOtrosTags = getTipoOtrosTags();
     if (tipoOtrosOn && tipoOtrosTags.length) tiposBase.push('Otro: ' + tipoOtrosTags.join(', '));
     const tipos     = tiposBase.join(' | ');
-    const feats     = [...document.querySelectorAll('#featGrid .feat-item.on')].map(el => { const cl=el.cloneNode(true); cl.querySelectorAll('.feat-icon,input').forEach(n=>n.remove()); return cl.textContent.trim(); }).join(' | ');
+    const feats     = [...document.querySelectorAll('#featGrid .feat-item.on')].filter(el => el.id !== 'adminFeat').map(el => { const cl=el.cloneNode(true); cl.querySelectorAll('.feat-icon,input').forEach(n=>n.remove()); return cl.textContent.trim(); }).join(' | ');
     const otrosOn   = document.getElementById('otrosFeat').classList.contains('on');
     const otrosTags = getOtrosTags();
-    const featsFull = [feats, otrosOn && otrosTags.length ? 'Otros: ' + otrosTags.join(', ') : ''].filter(Boolean).join(' | ');
+    const adminOn_s   = document.getElementById('adminFeat').classList.contains('on');
+    const adminEmpresaVal = document.getElementById('adminEmpresa').value.trim();
+    const adminTelefonoVal = document.getElementById('adminTelefono').value.trim();
+    const adminStr  = adminOn_s ? ['Administración', adminEmpresaVal ? `Empresa: ${adminEmpresaVal}` : '', adminTelefonoVal ? `Tel: ${adminTelefonoVal}` : ''].filter(Boolean).join(' · ') : '';
+    const featsFull = [feats, otrosOn && otrosTags.length ? 'Otros: ' + otrosTags.join(', ') : '', adminStr].filter(Boolean).join(' | ');
     const notes     = document.getElementById('fEdificioNotes').value;
 
     const rows = [];
@@ -2337,6 +2380,10 @@ function _clearAll() {
     document.getElementById('otrosWrap').classList.remove('show');
     document.getElementById('otrosList').innerHTML = '';
     document.getElementById('otrosTagInput').value = '';
+    document.getElementById('adminFeat').classList.remove('on');
+    document.getElementById('adminPanel').style.display = 'none';
+    document.getElementById('adminEmpresa').value = '';
+    document.getElementById('adminTelefono').value = '';
     document.getElementById('floorsWrap').innerHTML = '';
     document.getElementById('cartaCard').classList.remove('show');
     floorSeq = 0; doorSeq = 0;
