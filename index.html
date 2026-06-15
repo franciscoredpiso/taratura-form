@@ -1150,18 +1150,18 @@
         <div class="card-label">Edificio</div>
         <div class="input-row">
             <div class="field" style="flex:2">
-                <label>Calle / Vía</label>
-                <input type="text" id="fCalle" placeholder="Ej: Calle Mayor" autocomplete="off" oninput="autoSave()">
+                <label>Calle / Vía <span style="color:#ef4444">*</span></label>
+                <input type="text" id="fCalle" placeholder="Ej: Calle Mayor" autocomplete="off" oninput="autoSave()" required>
             </div>
             <div class="field" style="flex:1">
-                <label>Nº Portal</label>
-                <input type="text" id="fPortal" placeholder="14" autocomplete="off" oninput="autoSave()">
+                <label>Nº Portal <span style="color:#ef4444">*</span></label>
+                <input type="text" id="fPortal" placeholder="14" autocomplete="off" oninput="autoSave()" required>
             </div>
         </div>
 
         <!-- Tipo de Inmueble -->
         <div class="feat-section" style="margin-top:14px">
-            <div class="card-label" style="margin-bottom:8px">Tipo de Inmueble</div>
+            <div class="card-label" style="margin-bottom:8px">Tipo de Inmueble <span style="color:#ef4444">*</span></div>
             <div class="feat-grid" id="tipoGrid" style="grid-template-columns: repeat(2,1fr)">
                 <div class="feat-item" onclick="toggleFeat(this)">
                     <span class="feat-icon">🏢</span> Edificio
@@ -1422,6 +1422,7 @@ const VINCULOS_BTN = [
     { v: 'Portero/Conserje',        icon: '🏢' },
     { v: 'Presidente de comunidad', icon: '👔' },
     { v: 'Administrador',           icon: '📋' },
+    { v: 'Viven',                   icon: '👥' },
     { v: 'Sin vínculo',             icon: '—' },
 ];
 const INDICIOS = [
@@ -1432,7 +1433,7 @@ const INDICIOS = [
     { icon: '⬜', label: 'Sin felpudo' },
     { icon: '🚪', label: 'Puerta en mal estado (sucia, polvo, telarañas)' },
     { icon: '🚨', label: 'Cartel de alarma' },
-    { icon: '👥', label: 'Viven' },
+    { icon: '🕳️', label: 'Mirilla' },
 ];
 
 // ─────────────────────────────────────────────
@@ -2191,6 +2192,15 @@ async function sendToServer() {
     if (!calle || !portal) {
         showToast('Completa Calle y Nº Portal primero');
         document.getElementById('fCalle').focus();
+        return;
+    }
+
+    // Validar Tipo de Inmueble
+    const tiposSeleccionados = document.querySelectorAll('#tipoGrid .feat-item.on').length
+        + (document.getElementById('tipoOtrosFeat')?.classList.contains('on') && getTipoOtrosTags().length > 0 ? 1 : 0);
+    if (tiposSeleccionados === 0) {
+        showToast('Selecciona al menos un Tipo de Inmueble');
+        document.getElementById('tipoGrid').scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
     }
 
