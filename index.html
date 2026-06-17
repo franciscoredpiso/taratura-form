@@ -317,6 +317,7 @@
 
         /* Estado colors */
         .s-vacio   { border-color:#10b981!important; background:#ecfdf5!important; color:#065f46!important; }
+        .s-habit   { border-color:#0d9488!important; background:#f0fdfa!important; color:#115e59!important; }
         .s-venta   { border-color:#f59e0b!important; background:#fffbeb!important; color:#78350f!important; }
         .s-alq-lp  { border-color:#6366f1!important; background:#eef2ff!important; color:#3730a3!important; }
         .s-alq-cp  { border-color:#a855f7!important; background:#faf5ff!important; color:#581c87!important; }
@@ -1421,22 +1422,22 @@ const ESC_LABELS = {
 const ESTADOS = [
     { v: '',                 l: '★ Estado (obligatorio)', c: '' },
     { v: 'Vacío',            l: '🟢 Vacío',               c: 's-vacio' },
+    { v: 'Habitado',         l: '🏘️ Habitado',            c: 's-habit' },
     { v: 'En Venta',         l: '🟡 En Venta',            c: 's-venta' },
     { v: 'Alquilado',        l: '🔵 Alquilado',           c: 's-alq-lp' },
-    { v: 'Vive-Propietario', l: '⚫ Propietario',         c: 's-propiet' },
     { v: 'No Contesta',      l: '🟠 No Contesta',         c: 's-no-cont' },
     { v: '_otro',            l: '✏️ Otro...',              c: '' },
 ];
 const VINCULOS_BTN = [
-    { v: 'Propietario directo',     icon: '🏠' },
-    { v: 'Inquilino/a',             icon: '🔑' },
-    { v: 'Familiar',                icon: '👨‍👩‍👧' },
-    { v: 'Vecino amigo',            icon: '🤝' },
-    { v: 'Portero/Conserje',        icon: '🏢' },
-    { v: 'Presidente de comunidad', icon: '👔' },
-    { v: 'Administrador',           icon: '📋' },
-    { v: 'Viven',                   icon: '👥' },
-    { v: 'Sin vínculo',             icon: '—' },
+    { v: 'Propietario/a',            icon: '🏠' },
+    { v: 'Inquilino/a',              icon: '🔑' },
+    { v: 'Familiar',                 icon: '👨‍👩‍👧' },
+    { v: 'Viven (no especifica)',    icon: '👥' },
+    { v: 'Vecino amigo',             icon: '🤝' },
+    { v: 'Portero / Conserje',       icon: '🏢' },
+    { v: 'Presidente de Comunidad',  icon: '👔' },
+    { v: 'Administrador',            icon: '📋' },
+    { v: 'Sin vínculo',              icon: '—' },
 ];
 const INDICIOS = [
     { icon: '🪟', label: 'Persianas siempre bajas' },
@@ -1945,8 +1946,15 @@ function onEstadoChange(sel, did) {
         }
     } else if (sel.value === 'Alquilado') {
         setVinculos(did, ['Inquilino/a']);
-    } else if (sel.value === 'Vive-Propietario') {
-        setVinculos(did, ['Propietario directo']);
+    } else if (sel.value === 'Habitado') {
+        // Habitado no implica saber quién vive: abrir el detalle para que
+        // el asesor marque Propietario / Inquilino / Viven (si no lo sabe).
+        const det = document.getElementById(did + 'Det');
+        const btn = document.getElementById(did + 'Btn');
+        if (det && !det.classList.contains('open')) {
+            det.classList.add('open');
+            btn?.classList.add('open');
+        }
     }
     autoSave();
 }
@@ -2260,6 +2268,13 @@ async function sendToServer() {
         showToast('⚠️ Describe el estado en las puertas marcadas como "Otro"');
         return;
     }
+    // Habitado sin vínculo elegido (el asesor no supo si era propietario o
+    // inquilino): por defecto se registra "Viven" en lugar de dejarlo vacío.
+    [...document.querySelectorAll('.estado-select')]
+        .filter(s => s.value === 'Habitado')
+        .map(s => s.id.replace('Est', ''))
+        .filter(did => getVinculos(did).length === 0)
+        .forEach(did => setVinculos(did, ['Viven (no especifica)']));
 
     const ts          = new Date().toLocaleString('es-ES');
     const tiposBase   = [...document.querySelectorAll('#tipoGrid .feat-item.on')].map(el => { const cl=el.cloneNode(true); cl.querySelectorAll('.feat-icon,input').forEach(n=>n.remove()); return cl.textContent.trim(); });
@@ -3081,6 +3096,35 @@ async function saveCurrentSlots() {
     await idbPut(record);
 }
 
+// ── Subida de fotos a Drive (solo imágenes; el vídeo se queda en el móvil) ──
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+async function uploadFotoBuzon(file, calle, portal) {
+    const base64 = await fileToBase64(file);
+    const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+            action:   'media',
+            Zona:     localStorage.getItem('tz_zona') || '',
+            Calle:    calle,
+            Portal:   portal,
+            fileName: file.name || ('foto_' + Date.now() + '.jpg'),
+            mimeType: file.type || 'image/jpeg',
+            base64
+        })
+    });
+    const result = await res.json();
+    if (!result.ok) throw new Error(result.error || 'Error subiendo foto');
+    return result.url;
+}
+
 // ── Registrar en Excel ───────────────────────
 async function registrarBuzones() {
     await saveCurrentSlots();
@@ -3089,6 +3133,24 @@ async function registrarBuzones() {
 
     const floorsData = getBuzFloorsData();
     if (!floorsData.length) { showToast('Añade al menos una planta con puertas'); return; }
+
+    const btn = document.getElementById('btnRegistrar');
+    btn.disabled    = true;
+    btn.textContent = 'Enviando…';
+
+    // Subir solo fotos (no vídeo) a Drive; si falla, igual se guardan los
+    // nombres — la foto no es bloqueante para registrar.
+    let fotoUrlsStr = '';
+    const imgFiles = (record.files || []).filter(f => f.type.startsWith('image/'));
+    if (imgFiles.length) {
+        btn.textContent = 'Subiendo fotos…';
+        try {
+            const urls = await Promise.all(imgFiles.map(f => uploadFotoBuzon(f.blob, record.calle, record.portal)));
+            fotoUrlsStr = urls.join(' | ');
+        } catch (err) {
+            showToast('No se pudieron subir las fotos (se guardan solo los nombres): ' + err.message);
+        }
+    }
 
     const ts   = new Date().toLocaleString('es-ES');
     const rows = [];
@@ -3103,13 +3165,12 @@ async function registrarBuzones() {
                 Piso:            f.piso,
                 Escalera_Bloque: f.escalera,
                 Puerta:          d.puerta,
-                Nombre_Buzon:    d.nombres.join(' / ')
+                Nombre_Buzon:    d.nombres.join(' / '),
+                Foto_Buzon_URL:  fotoUrlsStr
             });
         });
     });
 
-    const btn = document.getElementById('btnRegistrar');
-    btn.disabled    = true;
     btn.textContent = 'Enviando…';
 
     try {
