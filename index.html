@@ -1837,7 +1837,7 @@ async function loadCallesIndex() {
     if (CALLE_AC.loading || CALLE_AC.available) return;
     CALLE_AC.loading = true;
     try {
-        const res = await fetch('calles_zaragoza.csv', { cache: 'force-cache' });
+        const res = await fetch('calles_zaragoza.csv', { cache: 'no-cache' });
         if (!res.ok) throw new Error('sin maestro de calles (HTTP ' + res.status + ')');
         const text = await res.text();
         CALLE_AC.entries = parseCallesCsv(text);
