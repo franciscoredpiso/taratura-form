@@ -27,7 +27,24 @@
             z-index: 200;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
+        .header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
         .header-title { font-size: 17px; font-weight: 800; letter-spacing: -0.5px; }
+        .header-home-btn {
+            background: rgba(255,255,255,0.12);
+            border: none;
+            color: white;
+            font-size: 17px;
+            width: 30px;
+            height: 30px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .header-home-btn.hidden { display: none; }
         .header-badge {
             background: rgba(255,255,255,0.12);
             border-radius: 20px;
@@ -39,6 +56,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            flex-shrink: 0;
         }
 
         /* ── LAYOUT ── */
@@ -323,7 +341,9 @@
         .s-alq-cp  { border-color:#a855f7!important; background:#faf5ff!important; color:#581c87!important; }
         .s-propiet { border-color:#64748b!important; background:#f1f5f9!important; color:#334155!important; }
         .s-no-cont { border-color:#f97316!important; background:#fff7ed!important; color:#9a3412!important; }
+        .s-deshab  { border-color:#64748b!important; background:#f1f5f9!important; color:#334155!important; }
         .s-sin-dat { border-color:#cbd5e1!important; background:#f8fafc!important; color:#94a3b8!important; }
+        .s-noticia { border-color:#dc2626!important; background:#fef2f2!important; color:#991b1b!important; }
 
         /* Carta button */
         .btn-carta {
@@ -786,6 +806,103 @@
         .nav-tab.active { color: white; }
         .nav-tab .nav-icon { font-size: 22px; line-height: 1; }
 
+        /* ── HOME SCREEN ── */
+        #homeSection {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 130px);
+            gap: 32px;
+        }
+        .home-logo {
+            max-width: 220px;
+            max-height: 90px;
+            object-fit: contain;
+        }
+        .home-buttons {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 18px;
+            justify-content: center;
+            align-items: stretch;
+            width: 100%;
+        }
+        .home-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex: 0 1 180px;
+            max-width: 200px;
+            padding: 32px 20px;
+            border: none;
+            border-radius: 18px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 800;
+            color: white;
+            letter-spacing: -0.3px;
+            transition: opacity 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .home-btn:active { opacity: 0.85; }
+        .home-btn-icon { font-size: 38px; line-height: 1; }
+        .home-btn-taratura { background: #0f172a; }
+        .home-btn-noticias { background: #6366f1; }
+
+        /* ── NOTICIAS SECTION ── */
+        #noticiasSection { display: none; }
+        .noticias-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748b;
+            margin-top: 12px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .noticia-result-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px;
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            border: 1.5px solid #e2e8f0;
+        }
+        .noticia-result-item:active { opacity: 0.85; }
+        .noticia-result-info { flex: 1; min-width: 0; }
+        .noticia-result-title { font-size: 14px; font-weight: 700; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .noticia-result-meta { font-size: 12px; color: #94a3b8; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .noticia-badge { font-size: 10px; font-weight: 800; padding: 4px 9px; border-radius: 20px; flex-shrink: 0; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.5px; }
+        .noticia-badge.abierta { background: #fee2e2; color: #991b1b; }
+        .noticia-badge.cerrada { background: #f1f5f9; color: #94a3b8; }
+        .noticias-empty { text-align: center; color: #94a3b8; font-size: 13px; padding: 40px 20px; }
+        .timeline-item { padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+        .timeline-item:last-child { border-bottom: none; }
+        .timeline-fecha { font-size: 11px; font-weight: 700; color: #94a3b8; }
+        .timeline-autor { font-size: 12px; font-weight: 700; color: #0f172a; margin: 2px 0; }
+        .timeline-nota { font-size: 13px; color: #475569; line-height: 1.4; white-space: pre-wrap; }
+        .btn-add-nota {
+            width: 100%; padding: 13px; background: #0f172a; color: white; border: none;
+            border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 4px;
+        }
+        .btn-add-nota:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .btn-cerrar-caso {
+            width: 100%; padding: 13px; background: #10b981; color: white; border: none;
+            border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px;
+        }
+        .noticia-detail-row { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; font-size: 13px; }
+        .noticia-detail-row span:first-child { color: #94a3b8; font-weight: 600; }
+        .noticia-detail-row span:last-child { color: #1e293b; font-weight: 700; text-align: right; }
+
         /* ── BUZONES SECTION ── */
         #buzSection { display: none; }
 
@@ -1137,12 +1254,35 @@
 </div>
 
 <div class="header">
-    <div class="header-title">Taratura</div>
+    <div class="header-left">
+        <button class="header-home-btn hidden" id="headerHomeBtn" onclick="showScreen('home')" title="Inicio">🏠</button>
+        <div class="header-title">Captación de Inmuebles</div>
+    </div>
     <div class="header-badge" id="headerBadge" onclick="showSetup(true)" title="Cambiar asesor/zona">—</div>
 </div>
 
 <input type="hidden" id="fZona">
 <input type="hidden" id="fAsesor">
+
+<!-- ── HOME: pantalla inicial con los dos accesos ── -->
+<div class="container" id="homeSection">
+    <!-- Logo opcional: sube tu archivo a la raíz del repo en GitHub con el
+         nombre "logo.png" o "logo.jpg" (cualquiera de los dos formatos
+         funciona automáticamente). Si no subes ninguno, la imagen se
+         oculta sola y no rompe nada. -->
+    <img class="home-logo" id="homeLogo" src="logo.png" alt="Logo"
+         onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='logo.jpg';}else{this.style.display='none';}">
+    <div class="home-buttons">
+        <button class="home-btn home-btn-taratura" onclick="showScreen('taratura')">
+            <span class="home-btn-icon">📋</span>
+            <span>Taratura</span>
+        </button>
+        <button class="home-btn home-btn-noticias" onclick="showScreen('noticias')">
+            <span class="home-btn-icon">🔎</span>
+            <span>Noticias</span>
+        </button>
+    </div>
+</div>
 
 <div class="container" id="mainContainer">
 
@@ -1276,6 +1416,53 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ── NOTICIAS SECTION ── -->
+<div id="noticiasSection">
+
+  <!-- Buscador / índice -->
+  <div id="noticiasListView" class="container">
+    <div class="card">
+        <div class="field">
+            <label>Buscar</label>
+            <input type="text" id="noticiasSearch" placeholder="Calle, número, piso, puerta, propietario..."
+                   oninput="filtrarNoticias()" autocomplete="off">
+        </div>
+        <label class="noticias-toggle">
+            <input type="checkbox" id="noticiasSoloAbiertas" checked onchange="filtrarNoticias()">
+            Solo casos con ficha abierta
+        </label>
+    </div>
+    <div id="noticiasResults">
+        <div class="noticias-empty">Cargando índice…</div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- Detalle de ficha -->
+  <div id="noticiasDetailView" class="container" style="display:none">
+    <button class="buz-back-btn" onclick="cerrarDetalleNoticia()">← Buscador</button>
+
+    <div class="card" id="noticiasDetailHeader"></div>
+
+    <div class="card">
+        <div class="card-label">Seguimiento</div>
+        <div id="noticiasTimeline"></div>
+    </div>
+
+    <div class="card">
+        <div class="field">
+            <label>Nueva nota</label>
+            <textarea id="noticiasNotaInput" placeholder="Qué pasó en esta visita o llamada..." style="height:80px"></textarea>
+        </div>
+        <button class="btn-add-nota" id="btnAgregarNota" onclick="agregarNotaNoticia()">+ Añadir nota</button>
+    </div>
+
+    <button class="btn-cerrar-caso" id="btnCerrarCaso" onclick="cerrarCasoNoticia()">✓ Cerrar caso</button>
+    <div style="height:24px"></div>
+  </div>
+
+</div>
 
 <!-- ── BUZONES SECTION ── -->
 <div id="buzSection">
@@ -1421,18 +1608,21 @@ const ESC_LABELS = {
 };
 const ESTADOS = [
     { v: '',                 l: '★ Estado (obligatorio)', c: '' },
-    { v: 'Vacío',            l: '🟢 Vacío',               c: 's-vacio' },
     { v: 'Habitado',         l: '🏘️ Habitado',            c: 's-habit' },
-    { v: 'En Venta',         l: '🟡 En Venta',            c: 's-venta' },
-    { v: 'Alquilado',        l: '🔵 Alquilado',           c: 's-alq-lp' },
+    { v: 'Deshabitado',      l: '⚫ Deshabitado',          c: 's-deshab' },
     { v: 'No Contesta',      l: '🟠 No Contesta',         c: 's-no-cont' },
-    { v: '_otro',            l: '✏️ Otro...',              c: '' },
+    { v: 'Noticia',          l: '🔎 Noticia',             c: 's-noticia' },
+    { v: '_otro',            l: '✏️ Otro',                c: 's-sin-dat' },
 ];
 const VINCULOS_BTN = [
     { v: 'Propietario/a',            icon: '🏠' },
     { v: 'Inquilino/a',              icon: '🔑' },
     { v: 'Familiar',                 icon: '👨‍👩‍👧' },
     { v: 'Viven (no especifica)',    icon: '👥' },
+    { v: 'En Venta',                 icon: '🏷️' },
+    { v: 'En Alquiler',              icon: '🔖' },
+    { v: 'Sospechoso (parece vacío)', icon: '🕵️' },
+    { v: 'Vacío',                    icon: '📭' },
     { v: 'Vecino amigo',             icon: '🤝' },
     { v: 'Portero / Conserje',       icon: '🏢' },
     { v: 'Presidente de Comunidad',  icon: '👔' },
@@ -1442,6 +1632,7 @@ const VINCULOS_BTN = [
 const INDICIOS = [
     { icon: '🪟', label: 'Persianas siempre bajas' },
     { icon: '🔔', label: 'Timbre no funciona' },
+    { icon: '👶', label: 'Niños / bebés' },
     { icon: '🐕', label: 'Perro ladrando' },
     { icon: '🟫', label: 'Con felpudo' },
     { icon: '⬜', label: 'Sin felpudo' },
@@ -1540,6 +1731,7 @@ function completeSetup() {
 
     document.getElementById('setupScreen').classList.add('hidden');
     showToast(`Sesión iniciada: ${asesor} · ${zona}`);
+    showScreen('home');
 }
 
 // ─────────────────────────────────────────────
@@ -1572,6 +1764,8 @@ function init() {
 
     restoreState();
     if (!document.querySelector('.floor-card')) addFloor();
+
+    showScreen('home');
 }
 
 // ─────────────────────────────────────────────
@@ -2442,6 +2636,222 @@ function showToast(msg) {
     setTimeout(() => t.classList.remove('show'), 3000);
 }
 
+// ═════════════════════════════════════════════
+//  MÓDULO NOTICIAS
+// ═════════════════════════════════════════════
+let noticiasIndice   = null;   // cache en memoria — 1 sola carga por sesión
+let noticiasCargando = false;
+let fichaActual       = null;  // item del índice correspondiente a la ficha abierta en el detalle
+
+async function initNoticias() {
+    if (noticiasIndice || noticiasCargando) {
+        filtrarNoticias();
+        return;
+    }
+    noticiasCargando = true;
+    document.getElementById('noticiasResults').innerHTML =
+        '<div class="noticias-empty">Cargando índice…</div>';
+    try {
+        const res    = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body:   JSON.stringify({ action: 'obtener_indice' })
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || 'Error cargando índice');
+        noticiasIndice = result.indice || [];
+        filtrarNoticias();
+    } catch (err) {
+        document.getElementById('noticiasResults').innerHTML = `
+            <div class="noticias-empty">Error al cargar: ${err.message}<br>
+            <button onclick="recargarNoticias()" style="margin-top:10px;padding:8px 16px;background:#0f172a;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">Reintentar</button></div>`;
+    } finally {
+        noticiasCargando = false;
+    }
+}
+
+function recargarNoticias() {
+    noticiasIndice = null;
+    initNoticias();
+}
+
+function filtrarNoticias() {
+    if (!noticiasIndice) return;
+    const q            = document.getElementById('noticiasSearch').value.trim().toLowerCase();
+    const soloAbiertas = document.getElementById('noticiasSoloAbiertas').checked;
+
+    let items = noticiasIndice;
+    if (soloAbiertas) items = items.filter(it => it.fichaId);
+    if (q) {
+        items = items.filter(it => {
+            const hay = [it.calle, it.numero, it.escalera, it.piso, it.puerta, it.nombre, it.telefono]
+                        .map(v => String(v || '').toLowerCase()).join(' | ');
+            return hay.includes(q);
+        });
+    }
+    renderNoticiasResults(items);
+}
+
+function renderNoticiasResults(items) {
+    const box = document.getElementById('noticiasResults');
+    if (!items.length) {
+        box.innerHTML = '<div class="noticias-empty">Sin resultados.</div>';
+        window._noticiasRenderItems = [];
+        return;
+    }
+    // Fichas abiertas primero
+    const ordenados = [...items].sort((a, b) => (b.fichaId ? 1 : 0) - (a.fichaId ? 1 : 0));
+    window._noticiasRenderItems = ordenados;
+
+    box.innerHTML = ordenados.slice(0, 150).map((it, i) => {
+        const dir     = [it.calle, it.numero].filter(Boolean).join(' ');
+        const detalle = [it.escalera, it.piso, it.puerta ? `Puerta ${it.puerta}` : ''].filter(Boolean).join(' — ');
+        const badge   = it.fichaId
+            ? '<span class="noticia-badge abierta">Ficha abierta</span>'
+            : (it.estado === 'Noticia' ? '<span class="noticia-badge cerrada">Caso cerrado</span>' : '');
+        return `
+        <div class="noticia-result-item" onclick="abrirFicha(${i})">
+            <div class="noticia-result-info">
+                <div class="noticia-result-title">${dir || 'Sin calle'}</div>
+                <div class="noticia-result-meta">${detalle || it.estado || ''}</div>
+            </div>
+            ${badge}
+        </div>`;
+    }).join('');
+}
+
+async function abrirFicha(idx) {
+    const item = window._noticiasRenderItems?.[idx];
+    if (!item) return;
+    fichaActual = item;
+
+    document.getElementById('noticiasListView').style.display   = 'none';
+    document.getElementById('noticiasDetailView').style.display = '';
+    document.getElementById('noticiasNotaInput').value = '';
+
+    const dir     = [item.calle, item.numero].filter(Boolean).join(' ');
+    const detalle = [item.escalera, item.piso, item.puerta ? `Puerta ${item.puerta}` : ''].filter(Boolean).join(' — ');
+
+    document.getElementById('noticiasDetailHeader').innerHTML = `
+        <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:2px">${dir || 'Sin calle'}</div>
+        <div style="font-size:13px;color:#94a3b8;margin-bottom:10px">${detalle}</div>
+        <div class="noticia-detail-row"><span>Propietario</span><span>${item.nombre || '—'}</span></div>
+        <div class="noticia-detail-row"><span>Teléfono</span><span>${item.telefono || '—'}</span></div>
+        <div class="noticia-detail-row"><span>Zona / Asesor</span><span>${[item.zona, item.asesor].filter(Boolean).join(' · ') || '—'}</span></div>
+        <div class="noticia-detail-row"><span>Estado</span><span>${item.fichaId ? 'En investigación' : 'Caso cerrado'}</span></div>
+    `;
+
+    const btnNota   = document.getElementById('btnAgregarNota');
+    const btnCerrar = document.getElementById('btnCerrarCaso');
+    const sinFicha  = !item.fichaId;
+    btnNota.disabled         = sinFicha;
+    btnCerrar.style.display  = sinFicha ? 'none' : '';
+
+    const timeline = document.getElementById('noticiasTimeline');
+    if (sinFicha) {
+        timeline.innerHTML = '<div class="noticias-empty">Esta puerta no tiene una ficha abierta actualmente.</div>';
+        return;
+    }
+
+    timeline.innerHTML = '<div class="noticias-empty">Cargando…</div>';
+    try {
+        const res    = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body:   JSON.stringify({ action: 'obtener_seguimiento', fichaId: item.fichaId })
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || 'Error cargando seguimiento');
+        renderTimeline(result.seguimiento || []);
+    } catch (err) {
+        timeline.innerHTML = `<div class="noticias-empty">Error: ${err.message}</div>`;
+    }
+}
+
+function renderTimeline(rows) {
+    const timeline = document.getElementById('noticiasTimeline');
+    if (!rows.length) {
+        timeline.innerHTML = '<div class="noticias-empty">Sin notas todavía.</div>';
+        return;
+    }
+    // Más reciente arriba
+    timeline.innerHTML = [...rows].reverse().map(r => `
+        <div class="timeline-item">
+            <div class="timeline-fecha">${r.fecha || ''}</div>
+            <div class="timeline-autor">${r.autor || 'Sin autor'}</div>
+            <div class="timeline-nota">${String(r.nota || '').replace(/</g, '&lt;')}</div>
+        </div>
+    `).join('');
+}
+
+function cerrarDetalleNoticia() {
+    document.getElementById('noticiasDetailView').style.display = 'none';
+    document.getElementById('noticiasListView').style.display   = '';
+    document.getElementById('noticiasNotaInput').value = '';
+    fichaActual = null;
+}
+
+async function agregarNotaNoticia() {
+    if (!fichaActual || !fichaActual.fichaId) return;
+    const input = document.getElementById('noticiasNotaInput');
+    const nota  = input.value.trim();
+    if (!nota) { showToast('Escribe algo antes de añadir la nota'); return; }
+
+    const btn = document.getElementById('btnAgregarNota');
+    btn.disabled    = true;
+    btn.textContent = 'Guardando…';
+
+    try {
+        const res    = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body:   JSON.stringify({
+                action:  'agregar_seguimiento',
+                fichaId: fichaActual.fichaId,
+                autor:   localStorage.getItem('tz_asesor') || '',
+                nota
+            })
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || 'Error guardando nota');
+
+        input.value = '';
+        showToast('✓ Nota añadida');
+        await abrirFicha(window._noticiasRenderItems.indexOf(fichaActual));
+    } catch (err) {
+        showToast('Error: ' + err.message);
+    } finally {
+        btn.disabled    = false;
+        btn.textContent = '+ Añadir nota';
+    }
+}
+
+async function cerrarCasoNoticia() {
+    if (!fichaActual || !fichaActual.fichaId) return;
+    if (!confirm('¿Cerrar este caso? Dejará de aparecer como "Ficha abierta" en el buscador.')) return;
+
+    const btn = document.getElementById('btnCerrarCaso');
+    btn.disabled    = true;
+    btn.textContent = 'Cerrando…';
+
+    try {
+        const res    = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body:   JSON.stringify({ action: 'cerrar_ficha', fichaId: fichaActual.fichaId })
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || 'Error cerrando caso');
+
+        showToast('✓ Caso cerrado');
+        // Reflejar el cierre en el índice ya cargado, sin recargarlo entero
+        const idx = noticiasIndice.findIndex(it => it.fichaId === fichaActual.fichaId);
+        if (idx !== -1) noticiasIndice[idx].fichaId = null;
+        cerrarDetalleNoticia();
+        filtrarNoticias();
+    } catch (err) {
+        showToast('Error: ' + err.message);
+        btn.disabled    = false;
+        btn.textContent = '✓ Cerrar caso';
+    }
+}
+
 // ─────────────────────────────────────────────
 //  START
 // ─────────────────────────────────────────────
@@ -2453,24 +2863,45 @@ init();
 
 // ── Navegación entre pantallas ──────────────
 function showScreen(screen) {
+    const home        = document.getElementById('homeSection');
     const main        = document.getElementById('mainContainer');
+    const not         = document.getElementById('noticiasSection');
     const buz         = document.getElementById('buzSection');
     const tabTaratura = document.getElementById('tabTaratura');
     const tabBuzones  = document.getElementById('tabBuzones');
     const title       = document.querySelector('.header-title');
+    const homeBtn     = document.getElementById('headerHomeBtn');
 
-    if (screen === 'taratura') {
+    // Ocultar todas las pantallas principales antes de mostrar la elegida
+    home.style.display = 'none';
+    main.style.display = 'none';
+    not.style.display  = 'none';
+    buz.style.display  = 'none';
+    tabTaratura.classList.remove('active');
+    tabBuzones.classList.remove('active');
+
+    if (screen === 'home') {
+        home.style.display = 'flex';
+        title.textContent  = 'Captación de Inmuebles';
+        homeBtn.classList.add('hidden');
+
+    } else if (screen === 'taratura') {
         main.style.display = '';
-        buz.style.display  = 'none';
         tabTaratura.classList.add('active');
-        tabBuzones.classList.remove('active');
         title.textContent = 'Taratura';
-    } else {
-        main.style.display = 'none';
-        buz.style.display  = 'block';
-        tabTaratura.classList.remove('active');
+        homeBtn.classList.remove('hidden');
+
+    } else if (screen === 'noticias') {
+        not.style.display = 'block';
+        title.textContent = 'Noticias';
+        homeBtn.classList.remove('hidden');
+        initNoticias();
+
+    } else if (screen === 'buzones') {
+        buz.style.display = 'block';
         tabBuzones.classList.add('active');
         title.textContent = 'Buzones';
+        homeBtn.classList.remove('hidden');
         // Siempre arrancar en Pendientes al entrar a la sección
         buzFilter = 'pending';
         document.getElementById('btnFilterPending').classList.add('active');
