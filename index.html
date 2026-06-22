@@ -1334,6 +1334,21 @@
             </div>
         </div>
 
+        <!-- Fecha de la Taratura: autocompletada con hoy. Editable SOLO mientras
+             dure la carga histórica de taraturas en papel (ver flag
+             FECHA_VISITA_EDITABLE en el script). Cuando se cierre esa carga,
+             cambiar ese flag a false: el campo se bloquea solo, sin tocar nada más. -->
+        <div class="input-row">
+            <div class="field" style="flex:1">
+                <label>Fecha de la Taratura <span style="color:#ef4444">*</span></label>
+                <input type="date" id="fFecha" oninput="autoSave()" onchange="autoSave()" required>
+            </div>
+        </div>
+        <div class="calle-ac-hint" id="fFechaHint" style="margin-bottom:8px"></div>
+        <div class="setup-change-link" id="fFechaHoyWrap" style="margin-top:-8px;margin-bottom:10px;text-align:left">
+            <button type="button" onclick="setFechaHoy()">Volver a hoy</button>
+        </div>
+
         <!-- Tipo de Inmueble -->
         <div class="feat-section" style="margin-top:14px">
             <div class="card-label" style="margin-bottom:8px">Tipo de Inmueble <span style="color:#ef4444">*</span></div>
@@ -1642,6 +1657,50 @@ const ESC_LABELS = {
     'Bloque A': 'Bloque A', 'Bloque B': 'Bloque B', 'Bloque C': 'Bloque C',
     '_custom': 'Personalizado...'
 };
+// ─────────────────────────────────────────────
+//  FECHA DE LA TARATURA
+// ─────────────────────────────────────────────
+// ⚠️ TEMPORAL: mientras se digitaliza el histórico en papel, el asesor
+// puede corregir la fecha para que refleje cuándo se hizo la visita real,
+// no el día en que se carga el dato. Cuando se termine esa carga, cambiar
+// esto a `false` — es la ÚNICA línea que hay que tocar. El campo se
+// bloquea solo y siempre se fuerza a "hoy" (también del lado del
+// servidor, ver Fecha_Visita en taratura_script.gs, por si alguien edita
+// el HTML con las herramientas de desarrollador para saltarse el bloqueo).
+const FECHA_VISITA_EDITABLE = true;
+
+function todayLocalISO(d = new Date()) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function isoToEsDate(iso) {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+}
+function setFechaHoy() {
+    document.getElementById('fFecha').value = todayLocalISO();
+    autoSave();
+}
+function applyFechaPolicy() {
+    const el   = document.getElementById('fFecha');
+    const hint = document.getElementById('fFechaHint');
+    const hoy  = document.getElementById('fFechaHoyWrap');
+    if (!el.value) el.value = todayLocalISO();
+    if (!FECHA_VISITA_EDITABLE) {
+        el.value    = todayLocalISO();   // ignora cualquier fecha restaurada de localStorage
+        el.readOnly = true;
+        el.disabled = true;
+        hint.textContent = '🔒 Bloqueada — se registra siempre la fecha de hoy.';
+        hoy.style.display = 'none';
+    } else {
+        el.readOnly = false;
+        el.disabled = false;
+        hint.textContent = 'Se autocompleta con hoy. Cámbiala solo para cargar taraturas en papel ya realizadas.';
+        hoy.style.display = '';
+    }
+}
+
 const ESTADOS = [
     { v: '',                 l: '★ Estado (obligatorio)', c: '' },
     { v: 'Habitado',         l: '🏘️ Habitado',            c: 's-habit' },
@@ -1946,6 +2005,7 @@ function init() {
     }
 
     restoreState();
+    applyFechaPolicy();
     if (!document.querySelector('.floor-card')) addFloor();
 
     loadCallesIndex();
@@ -2453,6 +2513,7 @@ function _doSave() {
     const state = {
         calle:      document.getElementById('fCalle').value,
         portal:     document.getElementById('fPortal').value,
+        fecha:      document.getElementById('fFecha').value,
         tipos,
         tipoOtrosOn,
         tipoOtrosTags,
@@ -2514,6 +2575,7 @@ function restoreState() {
         const s = JSON.parse(raw);
         document.getElementById('fCalle').value  = s.calle  ?? '';
         document.getElementById('fPortal').value = s.portal ?? '';
+        document.getElementById('fFecha').value  = s.fecha  ?? '';
         document.getElementById('fEdificioNotes').value = s.notes ?? '';
 
         // Restore tipo de inmueble
@@ -2614,10 +2676,17 @@ async function sendToServer() {
     const asesor = document.getElementById('fAsesor').value;
     const calle  = document.getElementById('fCalle').value.trim();
     const portal = document.getElementById('fPortal').value.trim();
+    // Si el campo está bloqueado (FECHA_VISITA_EDITABLE = false), se ignora
+    // cualquier valor que tenga el input y se fuerza "hoy" — defensa en
+    // profundidad por si alguien lo reactiva desde las herramientas de
+    // desarrollador del navegador.
+    const fecha  = FECHA_VISITA_EDITABLE
+        ? document.getElementById('fFecha').value.trim()
+        : todayLocalISO();
 
-    if (!calle || !portal) {
-        showToast('Completa Calle y Nº Portal primero');
-        document.getElementById('fCalle').focus();
+    if (!calle || !portal || !fecha) {
+        showToast(!fecha ? 'Completa la Fecha de la Taratura' : 'Completa Calle y Nº Portal primero');
+        document.getElementById(!calle ? 'fCalle' : (!portal ? 'fPortal' : 'fFecha')).focus();
         return;
     }
 
@@ -2689,6 +2758,7 @@ async function sendToServer() {
                               .map(el => { const cl=el.cloneNode(true); cl.querySelectorAll('.ind-icon,input').forEach(n=>n.remove()); return cl.textContent.trim(); }).join(' | ');
             rows.push({
                 Timestamp:                ts,
+                Fecha_Visita:             isoToEsDate(fecha),
                 Zona:                     zona,
                 Asesor:                   asesor,
                 Calle:                    calle,
@@ -2766,6 +2836,9 @@ async function sendToServer() {
 function _clearAll() {
     document.getElementById('fCalle').value  = '';
     document.getElementById('fPortal').value = '';
+    // fFecha NO se limpia a propósito: al cargar varias taraturas en papel
+    // del mismo día por lote, no tiene sentido reescribirla en cada edificio.
+    // Si hace falta, está el botón "Volver a hoy" junto al campo.
     document.getElementById('fEdificioNotes').value = '';
     document.querySelectorAll('#tipoGrid .feat-item.on, #featGrid .feat-item.on').forEach(el => el.classList.remove('on'));
     document.getElementById('tipoOtrosFeat')?.classList.remove('on');
