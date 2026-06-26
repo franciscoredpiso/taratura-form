@@ -291,12 +291,12 @@
             padding: 10px 12px;
             background: #eff6ff;
             border-bottom: 1px solid #bfdbfe;
-            gap: 8px;
-            align-items: center;
+            gap: 6px;
+            flex-direction: column;
         }
         .esc-panel.open { display: flex; }
         .esc-select {
-            flex: 1;
+            width: 100%;
             padding: 8px 10px;
             border: 2px solid #bfdbfe;
             border-radius: 8px;
@@ -305,10 +305,11 @@
             color: #1e40af;
             background: white;
             -webkit-appearance: none;
+            box-sizing: border-box;
         }
         .esc-select:focus { outline: none; border-color: #3b82f6; }
         .esc-custom {
-            flex: 1;
+            width: 100%;
             padding: 8px 10px;
             border: 2px solid #bfdbfe;
             border-radius: 8px;
@@ -316,6 +317,7 @@
             color: #1e293b;
             background: white;
             display: none;
+            box-sizing: border-box;
         }
         .esc-custom.show { display: block; }
         .esc-custom:focus { outline: none; border-color: #3b82f6; }
