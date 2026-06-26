@@ -474,6 +474,8 @@ function getTipoOtrosTags() {
 function toggleVinculo(el, did) {
     el.classList.toggle('on');
     autoSave();
+    refreshSectionChips(did + 'VincBtns', did + 'VincChips');
+    scheduleSectionClose(did + 'VincToggle');
 }
 function getVinculos(did) {
     return [...document.querySelectorAll(`#${did}VincBtns .vinculo-btn.on`)]
@@ -489,7 +491,19 @@ function setVinculos(did, values) {
 // ─────────────────────────────────────────────
 //  ADD FLOOR
 // ─────────────────────────────────────────────
-function addFloor(savedPiso) {
+function addFloor(savedPiso, fromRestore) {
+    // Colapsar pisos existentes al añadir uno nuevo (solo desde botón, no desde restore)
+    if (!fromRestore) {
+        document.querySelectorAll('#floorsWrap .floor-card').forEach(card => {
+            if (!card.classList.contains('collapsed')) {
+                card.classList.add('collapsed');
+                const b = document.getElementById(card.id + 'CollapseBtn');
+                if (b) b.textContent = '▶';
+                refreshFloorSummary(card.id);
+            }
+        });
+    }
+
     floorSeq++;
     const fid = 'f' + floorSeq;
 
@@ -512,10 +526,13 @@ function addFloor(savedPiso) {
     div.id = fid;
     div.innerHTML = `
         <div class="floor-header">
+            <button class="btn-icon btn-collapse" id="${fid}CollapseBtn"
+                    onclick="toggleFloor('${fid}')" title="Expandir / Colapsar">▼</button>
             <span class="floor-num">Planta</span>
             <select class="piso-select" id="${fid}P" onchange="onPisoChange('${fid}')">${pisoOpts}</select>
             <input type="text" class="piso-custom" id="${fid}PCustom"
                    placeholder="Ej: Entresuelo, 16º..." oninput="autoSave()">
+            <span class="floor-summary" id="${fid}Summary"></span>
             <button class="btn-icon btn-esc" id="${fid}EscBtn"
                     onclick="toggleEsc('${fid}')" title="Escalera / Bloque">🏗️</button>
             <button class="btn-icon btn-del" onclick="removeFloor('${fid}')">×</button>
@@ -526,14 +543,28 @@ function addFloor(savedPiso) {
                 ${escOpts}
             </select>
             <input type="text" class="esc-custom" id="${fid}EscCustom"
-                   placeholder="Nombre escalera o bloque..." oninput="autoSave()">
+                   placeholder="Nombre escalera o bloque..." oninput="onEscCustomInput('${fid}')">
         </div>
         <div class="doors-list" id="${fid}D"></div>
-        <div style="padding:0 12px 4px">
+        <div class="floor-add-row" style="padding:0 12px 4px">
             <button class="btn-add-door" onclick="addDoor('${fid}')">+ Añadir Puerta</button>
         </div>
     `;
     document.getElementById('floorsWrap').appendChild(div);
+
+    // Heredar escalera de la planta anterior (solo al añadir manualmente, no en restore)
+    if (!fromRestore) {
+        const allFloors = [...document.querySelectorAll('#floorsWrap .floor-card')];
+        if (allFloors.length >= 2) {
+            const prevFid = allFloors[allFloors.length - 2].id;
+            const prevSel = document.getElementById(prevFid + 'EscSel');
+            if (prevSel?.value) {
+                const prevCustom = document.getElementById(prevFid + 'EscCustom');
+                propagateEscalera(prevFid, prevSel.value, prevCustom?.value || '');
+            }
+        }
+    }
+
     addDoor(fid);
     refreshSummary();
 }
@@ -585,7 +616,72 @@ function onEscChange(fid) {
     const custom = document.getElementById(fid + 'EscCustom');
     custom.classList.toggle('show', sel.value === '_custom');
     if (sel.value === '_custom') custom.focus();
+    propagateEscalera(fid, sel.value, custom.value);
     autoSave();
+}
+
+function onEscCustomInput(fid) {
+    const sel    = document.getElementById(fid + 'EscSel');
+    const custom = document.getElementById(fid + 'EscCustom');
+    if (sel?.value === '_custom') propagateEscalera(fid, '_custom', custom.value);
+    autoSave();
+}
+
+function propagateEscalera(fid, escVal, escCustomVal) {
+    const allFloors = [...document.querySelectorAll('#floorsWrap .floor-card')];
+    const idx = allFloors.findIndex(f => f.id === fid);
+    if (idx === -1) return;
+    allFloors.slice(idx + 1).forEach(floorEl => {
+        const nfid    = floorEl.id;
+        const nSel    = document.getElementById(nfid + 'EscSel');
+        const nCustom = document.getElementById(nfid + 'EscCustom');
+        const nPanel  = document.getElementById(nfid + 'EscPanel');
+        const nBtn    = document.getElementById(nfid + 'EscBtn');
+        if (!nSel) return;
+        if (escVal && !nPanel.classList.contains('open')) {
+            nPanel.classList.add('open');
+            if (nBtn) nBtn.classList.add('on');
+        } else if (!escVal) {
+            nPanel.classList.remove('open');
+            if (nBtn) nBtn.classList.remove('on');
+        }
+        nSel.value = escVal;
+        if (escVal === '_custom') {
+            nCustom.classList.add('show');
+            nCustom.value = escCustomVal;
+        } else {
+            nCustom.classList.remove('show');
+            nCustom.value = '';
+        }
+    });
+}
+
+function toggleFloor(fid) {
+    const card = document.getElementById(fid);
+    const btn  = document.getElementById(fid + 'CollapseBtn');
+    const isCollapsed = card.classList.toggle('collapsed');
+    btn.textContent = isCollapsed ? '▶' : '▼';
+    if (isCollapsed) refreshFloorSummary(fid);
+    autoSave();
+}
+
+function refreshFloorSummary(fid) {
+    const summary = document.getElementById(fid + 'Summary');
+    if (!summary) return;
+    const piso = getPisoValue(fid) || 'Planta';
+    const escSel    = document.getElementById(fid + 'EscSel');
+    const escCustom = document.getElementById(fid + 'EscCustom');
+    let esc = '';
+    if (escSel?.value === '_custom') {
+        esc = escCustom?.value.trim() || 'Personalizada';
+    } else if (escSel?.value) {
+        esc = ESC_LABELS[escSel.value] || escSel.value;
+    }
+    const doorCount = document.querySelectorAll(`#${fid}D .door-wrap`).length;
+    let text = piso;
+    if (esc) text += ' · ' + esc;
+    text += ' · ' + doorCount + (doorCount === 1 ? ' puerta' : ' puertas');
+    summary.textContent = text;
 }
 
 // ─────────────────────────────────────────────
@@ -645,7 +741,7 @@ function addDoor(fid, data) {
             </select>
             <button class="btn-carta${cartaOn ? ' on' : ''}" id="${did}Carta"
                     onclick="toggleCarta('${did}')" title="Dejar carta">✉️</button>
-            <button class="btn-more" id="${did}Btn" onclick="toggleDetail('${did}')" title="Más info">•••</button>
+            <button class="btn-more" id="${did}Btn" onclick="toggleDetail('${did}')" title="Ver / cerrar detalles"></button>
             <button class="btn-icon btn-del" onclick="removeDoor('${fid}','${did}')">×</button>
         </div>
         <div class="otro-est-panel${isOtroEst ? ' show' : ''}" id="${did}OtroPanel">
@@ -654,13 +750,25 @@ function addDoor(fid, data) {
                    value="${otroEstVal}" oninput="autoSave()">
         </div>
         <div class="door-detail" id="${did}Det">
-            <div>
-                <div class="mini-label">Vínculo con el Inmueble</div>
-                <div class="vinculo-grid" id="${did}VincBtns">${vincGrid}</div>
+            <div class="detail-section">
+                <button class="ds-toggle" id="${did}VincToggle" onclick="toggleDoorSection(this)">
+                    Vínculo con el Inmueble
+                    <span class="ds-chips" id="${did}VincChips"></span>
+                    <span class="ds-chevron">▶</span>
+                </button>
+                <div class="ds-body">
+                    <div class="vinculo-grid" id="${did}VincBtns">${vincGrid}</div>
+                </div>
             </div>
-            <div>
-                <div class="mini-label">Información adicional</div>
-                <div class="indicios-grid">${indiciosHtml}</div>
+            <div class="detail-section">
+                <button class="ds-toggle" id="${did}IndToggle" onclick="toggleDoorSection(this)">
+                    Información adicional
+                    <span class="ds-chips" id="${did}IndChips"></span>
+                    <span class="ds-chevron">▶</span>
+                </button>
+                <div class="ds-body">
+                    <div class="indicios-grid" id="${did}IndGrid">${indiciosHtml}</div>
+                </div>
             </div>
             <div>
                 <div class="mini-label">Observaciones</div>
@@ -684,11 +792,24 @@ function addDoor(fid, data) {
     const sel = document.getElementById(did + 'Est');
     paintEstado(sel);
 
+    // Al añadir puerta nueva (no desde restore), colapsar las otras puertas del piso
+    if (!data) {
+        document.querySelectorAll(`#${fid}D .door-wrap`).forEach(wrap => {
+            const otherId = wrap.id.replace('W', '');
+            document.getElementById(otherId + 'Det')?.classList.remove('open');
+            document.getElementById(otherId + 'Btn')?.classList.remove('open');
+        });
+    }
+
     // Open detail panel by default (unless explicitly saved as closed)
     if (data?.detailOpen ?? true) {
         document.getElementById(did + 'Det').classList.add('open');
         document.getElementById(did + 'Btn').classList.add('open');
     }
+
+    // Mostrar resumen de chips si hay datos guardados
+    refreshSectionChips(did + 'VincBtns', did + 'VincChips');
+    refreshSectionChips(did + 'IndGrid',  did + 'IndChips');
 
     refreshSummary();
     refreshCartaList();
@@ -709,9 +830,45 @@ function removeDoor(fid, did) {
 //  UI HELPERS
 // ─────────────────────────────────────────────
 function toggleDetail(did) {
-    document.getElementById(did + 'Det').classList.toggle('open');
+    const det = document.getElementById(did + 'Det');
+    const isOpening = !det.classList.contains('open');
+
+    if (isOpening) {
+        // Cerrar todas las demás puertas de la misma planta
+        const thisWrap = document.getElementById(did + 'W');
+        thisWrap?.closest('.doors-list')?.querySelectorAll('.door-wrap').forEach(wrap => {
+            const otherId = wrap.id.replace('W', '');
+            if (otherId !== did) {
+                document.getElementById(otherId + 'Det')?.classList.remove('open');
+                document.getElementById(otherId + 'Btn')?.classList.remove('open');
+            }
+        });
+    }
+
+    det.classList.toggle('open');
     document.getElementById(did + 'Btn').classList.toggle('open');
     autoSave();
+}
+
+function toggleDoorSection(btn) {
+    btn.classList.toggle('open');
+}
+
+const _sectionTimers = {};
+function scheduleSectionClose(toggleId) {
+    clearTimeout(_sectionTimers[toggleId]);
+    _sectionTimers[toggleId] = setTimeout(() => {
+        document.getElementById(toggleId)?.classList.remove('open');
+    }, 1200);
+}
+
+function refreshSectionChips(gridId, chipsId) {
+    const chipsEl = document.getElementById(chipsId);
+    if (!chipsEl) return;
+    const icons = [...document.querySelectorAll(`#${gridId} .on`)]
+        .map(el => (el.querySelector('.vb-icon, .ind-icon')?.textContent || '').trim())
+        .filter(Boolean);
+    chipsEl.textContent = icons.join(' ');
 }
 
 function toggleIndicio(id) {
@@ -719,6 +876,11 @@ function toggleIndicio(id) {
     el.classList.toggle('on');
     el.querySelector('input').checked = el.classList.contains('on');
     autoSave();
+    const did = id.match(/^(d\d+)Ind/)?.[1];
+    if (did) {
+        refreshSectionChips(did + 'IndGrid', did + 'IndChips');
+        scheduleSectionClose(did + 'IndToggle');
+    }
 }
 
 function toggleCarta(did) {
@@ -919,7 +1081,8 @@ function _doSave() {
             });
         });
 
-        state.floors.push({ piso, pisoCustom, escOpen, escVal, escCustom, doors });
+        const collapsed = floorEl.classList.contains('collapsed');
+        state.floors.push({ piso, pisoCustom, escOpen, escVal, escCustom, collapsed, doors });
     });
 
     savedSinceLastEdit = false;
@@ -989,7 +1152,7 @@ function restoreState() {
         if (s.floors?.length) {
             s.floors.forEach(fl => {
                 const nextFid = 'f' + (floorSeq + 1);
-                addFloor(fl.piso);
+                addFloor(fl.piso, true);
 
                 // Clear default door
                 document.getElementById(nextFid + 'D').innerHTML = '';
@@ -1017,6 +1180,15 @@ function restoreState() {
 
                 // Restore doors
                 fl.doors?.forEach(d => addDoor(nextFid, d));
+
+                // Restore collapsed state
+                if (fl.collapsed) {
+                    const card = document.getElementById(nextFid);
+                    card.classList.add('collapsed');
+                    const btn = document.getElementById(nextFid + 'CollapseBtn');
+                    if (btn) btn.textContent = '▶';
+                    refreshFloorSummary(nextFid);
+                }
             });
         }
         refreshCartaList();
