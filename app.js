@@ -1663,6 +1663,7 @@ function showScreen(screen) {
     const main        = document.getElementById('mainContainer');
     const not         = document.getElementById('noticiasSection');
     const buz         = document.getElementById('buzSection');
+    const por         = document.getElementById('portalesSection');
     const tabTaratura = document.getElementById('tabTaratura');
     const tabBuzones  = document.getElementById('tabBuzones');
     const title       = document.querySelector('.header-title');
@@ -1673,6 +1674,7 @@ function showScreen(screen) {
     main.style.display = 'none';
     not.style.display  = 'none';
     buz.style.display  = 'none';
+    por.style.display  = 'none';
     tabTaratura.classList.remove('active');
     tabBuzones.classList.remove('active');
 
@@ -1692,6 +1694,12 @@ function showScreen(screen) {
         title.textContent = 'Noticias';
         homeBtn.classList.remove('hidden');
         initNoticias();
+
+    } else if (screen === 'portales') {
+        por.style.display = 'block';
+        title.textContent = 'Portales';
+        homeBtn.classList.remove('hidden');
+        initPortales();
 
     } else if (screen === 'buzones') {
         buz.style.display = 'block';
@@ -2423,4 +2431,316 @@ async function registrarBuzones() {
         btn.textContent = '✓ Registrar en Excel';
         btn.disabled    = false;
     }
+}
+
+
+// ═════════════════════════════════════════════
+//  MÓDULO PORTALES
+// ═════════════════════════════════════════════
+
+let portalesData  = null;  // cache en memoria — 1 sola carga por sesión
+let portalActual  = null;  // id del portal abierto en el detalle
+
+async function initPortales() {
+    if (portalesData) {
+        renderPortalesList();
+        document.getElementById('portalesListView').style.display  = '';
+        document.getElementById('portalesDetailView').style.display = 'none';
+    } else {
+        await loadPortalesList(false);
+    }
+}
+
+async function loadPortalesList(forceRefresh) {
+    if (portalesData && !forceRefresh) { renderPortalesList(); return; }
+    const asesor = document.getElementById('fAsesor').value;
+    const zona   = document.getElementById('fZona').value;
+    document.getElementById('portalesResults').innerHTML =
+        '<div class="portales-empty">Cargando portales…</div>';
+    try {
+        const res    = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body:   JSON.stringify({ action: 'listar_portales', asesor, zona })
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || 'Error');
+        portalesData = result.portales || [];
+        renderPortalesList();
+    } catch (err) {
+        document.getElementById('portalesResults').innerHTML =
+            `<div class="portales-empty">Error al cargar.<br><button onclick="loadPortalesList(true)" style="margin-top:8px;padding:8px 16px;background:#0d9488;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer">Reintentar</button></div>`;
+    }
+}
+
+function filtrarPortales() {
+    renderPortalesList();
+}
+
+function renderPortalesList() {
+    const q    = document.getElementById('portalesSearch').value.trim().toLowerCase();
+    const data = portalesData || [];
+    const filtered = q
+        ? data.filter(p =>
+            String(p.calle  || '').toLowerCase().includes(q) ||
+            String(p.numero || '').toLowerCase().includes(q))
+        : data;
+
+    const container = document.getElementById('portalesResults');
+    if (filtered.length === 0) {
+        container.innerHTML = `<div class="portales-empty">${
+            q ? 'No hay portales que coincidan.' : 'Sin portales aún. Toca <strong>+</strong> para añadir uno.'
+        }</div>`;
+        return;
+    }
+
+    // Agrupar por calle
+    const byCalle = {};
+    for (const p of filtered) {
+        const c = String(p.calle || '').trim() || 'Sin calle';
+        if (!byCalle[c]) byCalle[c] = [];
+        byCalle[c].push(p);
+    }
+
+    let html = '';
+    for (const calle of Object.keys(byCalle).sort()) {
+        const portales = byCalle[calle].sort((a, b) =>
+            String(a.numero || '').localeCompare(String(b.numero || ''), 'es', { numeric: true })
+        );
+        html += `<div class="portales-calle-group"><div class="portales-calle-nombre">${calle}</div>`;
+        for (const p of portales) {
+            const vueltas  = p.total_vueltas > 0 ? ` V${p.total_vueltas}` : '';
+            const fechaStr = p.ultima_visita ? ' · ' + portalesFmtFecha(p.ultima_visita) : '';
+            html += `
+              <div class="portales-item" onclick="abrirDetallePortal('${p.id_portal}')">
+                <span class="portales-numero">Nº ${p.numero}</span>
+                <span class="portales-estado-badge ${portalEstadoClass(p.estado_actual)}">${portalEstadoIcon(p.estado_actual)} ${p.estado_actual || 'Pendiente'}</span>
+                <span class="portales-meta">${vueltas}${fechaStr}</span>
+              </div>`;
+        }
+        html += `</div>`;
+    }
+    container.innerHTML = html;
+}
+
+function portalEstadoClass(e) {
+    if (e === 'Visitado') return 'estado-visitado';
+    if (e === 'Parcial')  return 'estado-parcial';
+    return 'estado-pendiente';
+}
+function portalEstadoIcon(e) {
+    if (e === 'Visitado') return '✓';
+    if (e === 'Parcial')  return '◑';
+    return '●';
+}
+function portalesFmtFecha(f) {
+    const s = String(f || '');
+    if (s.includes('/')) { const p = s.split('/'); return p.length >= 2 ? `${p[0]}/${p[1]}` : s; }
+    if (s.includes('-')) { const p = s.split('-'); return p.length >= 3 ? `${p[2]}/${p[1]}` : s; }
+    return s.substring(0, 10);
+}
+
+async function abrirDetallePortal(idPortal) {
+    portalActual = idPortal;
+    document.getElementById('portalesListView').style.display   = 'none';
+    document.getElementById('portalesDetailView').style.display = '';
+    document.getElementById('portalesDetailHeader').innerHTML   = '<div class="portales-empty">Cargando…</div>';
+    document.getElementById('portalesHistorial').innerHTML      = '';
+    document.getElementById('portalesBuzones').innerHTML        = '';
+    try {
+        const res    = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body:   JSON.stringify({ action: 'obtener_portal', id_portal: idPortal })
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || 'Error');
+        renderDetallePortal(result.ficha, result.visitas || []);
+    } catch (err) {
+        document.getElementById('portalesDetailHeader').innerHTML =
+            `<div class="portales-empty">Error al cargar.<br><button onclick="abrirDetallePortal('${idPortal}')" style="margin-top:8px;padding:8px 16px;background:#0d9488;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer">Reintentar</button></div>`;
+    }
+}
+
+function renderDetallePortal(ficha, visitas) {
+    const detalleEdif = [
+        ficha.plantas       ? ficha.plantas       + ' plantas'       : '',
+        ficha.puertas_planta ? ficha.puertas_planta + ' puertas/planta' : '',
+        ficha.escaleras     ? ficha.escaleras     + (ficha.escaleras == 1 ? ' escalera' : ' escaleras') : ''
+    ].filter(Boolean).join(' · ');
+
+    document.getElementById('portalesDetailHeader').innerHTML = `
+        <div class="portales-detalle-titulo">${ficha.calle}, ${ficha.numero}</div>
+        ${detalleEdif ? `<div class="portales-detalle-edif">${detalleEdif}</div>` : ''}
+        <div class="portales-detalle-estado ${portalEstadoClass(ficha.estado_actual)}">${portalEstadoIcon(ficha.estado_actual)} ${ficha.estado_actual || 'Pendiente'} · ${ficha.total_vueltas || 0} ${Number(ficha.total_vueltas) === 1 ? 'vuelta' : 'vueltas'}</div>
+        ${ficha.observaciones ? `<div class="portales-obs">${ficha.observaciones}</div>` : ''}
+    `;
+
+    const histEl = document.getElementById('portalesHistorial');
+    histEl.innerHTML = visitas.length === 0
+        ? '<div class="portales-empty-sm">Sin visitas registradas aún.</div>'
+        : visitas.map(v => `
+            <div class="portales-visita-item">
+              <div class="portales-visita-head">
+                <span class="portales-visita-vuelta">Vuelta ${v.vuelta}</span>
+                <span class="portales-visita-fecha">${portalesFmtFecha(v.fecha)}</span>
+                <span class="portales-visita-asesor">${v.asesor || ''}</span>
+              </div>
+              <div class="portales-visita-result ${portalEstadoClass(v.resultado_general === 'Completada' ? 'Visitado' : v.resultado_general === 'Parcial' ? 'Parcial' : 'Pendiente')}">
+                ${v.resultado_general || ''}${v.carta_enviada === 'Sí' ? ' · Carta enviada' : ''}${v.puertas_visitadas ? ` · ${v.puertas_visitadas} puertas` : ''}
+              </div>
+              ${v.observaciones ? `<div class="portales-visita-obs">${v.observaciones}</div>` : ''}
+            </div>`).join('');
+
+    const buzEl = document.getElementById('portalesBuzones');
+    buzEl.innerHTML = ficha.buzones
+        ? `<pre class="portales-buzones-txt">${ficha.buzones}</pre>`
+        : '<div class="portales-empty-sm">Sin nombres de buzones aún.</div>';
+
+    document.getElementById('btnNuevaVisita').dataset.portal = JSON.stringify(ficha);
+}
+
+function cerrarDetallePortal() {
+    document.getElementById('portalesDetailView').style.display = 'none';
+    document.getElementById('portalesListView').style.display   = '';
+    portalActual = null;
+}
+
+// ── Modal: nuevo portal ──────────────────────
+
+function abrirModalNuevoPortal() {
+    ['portalNuevoCalle','portalNuevoNumero','portalNuevoPlantas',
+     'portalNuevoPuertas','portalNuevoEscaleras','portalNuevoObs']
+        .forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('portalesNuevoModal').style.display = 'flex';
+}
+
+async function guardarNuevoPortal() {
+    const calle  = document.getElementById('portalNuevoCalle').value.trim();
+    const numero = document.getElementById('portalNuevoNumero').value.trim();
+    if (!calle || !numero) { showToast('Completa la calle y el número'); return; }
+    const asesor = document.getElementById('fAsesor').value;
+    const zona   = document.getElementById('fZona').value;
+    const btn    = document.querySelector('#portalesNuevoModal .btn-modal-confirm');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+        const res    = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body:   JSON.stringify({
+                action:         'crear_portal',
+                asesor, zona, calle, numero,
+                plantas:        document.getElementById('portalNuevoPlantas').value  || '',
+                puertas_planta: document.getElementById('portalNuevoPuertas').value  || '',
+                escaleras:      document.getElementById('portalNuevoEscaleras').value || '',
+                observaciones:  document.getElementById('portalNuevoObs').value.trim()
+            })
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || 'Error');
+        cerrarModal('portalesNuevoModal');
+        showToast('Portal añadido ✓');
+        portalesData = null;
+        await loadPortalesList(true);
+    } catch (err) {
+        showToast('Error: ' + err.message);
+    } finally {
+        btn.disabled = false; btn.textContent = 'Guardar →';
+    }
+}
+
+// ── Modal: registrar visita ──────────────────
+
+function abrirModalVisita() {
+    document.getElementById('visitaFecha').value = todayLocalISO();
+    document.querySelectorAll('#visitaResultado .portales-result-btn')
+        .forEach(b => b.classList.remove('portales-result-btn-active'));
+    document.getElementById('visitaCartaSi').classList.remove('portales-result-btn-active');
+    document.getElementById('visitaCartaNo').classList.add('portales-result-btn-active');
+    document.getElementById('visitaPuertas').value = '';
+    document.getElementById('visitaObs').value     = '';
+    document.getElementById('portalesVisitaModal').style.display = 'flex';
+}
+
+function selectResultado(btn) {
+    document.querySelectorAll('#visitaResultado .portales-result-btn')
+        .forEach(b => b.classList.remove('portales-result-btn-active'));
+    btn.classList.add('portales-result-btn-active');
+}
+
+function selectCarta(val) {
+    document.getElementById('visitaCartaSi').classList.toggle('portales-result-btn-active', val === 'Si');
+    document.getElementById('visitaCartaNo').classList.toggle('portales-result-btn-active', val === 'No');
+}
+
+async function guardarVisita() {
+    const rBtn = document.querySelector('#visitaResultado .portales-result-btn-active');
+    if (!rBtn) { showToast('Selecciona un resultado'); return; }
+    const cartaSi = document.getElementById('visitaCartaSi').classList.contains('portales-result-btn-active');
+    const btn = document.getElementById('btnGuardarVisita');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+        const res    = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body:   JSON.stringify({
+                action:            'registrar_visita',
+                id_portal:         portalActual,
+                fecha:             document.getElementById('visitaFecha').value,
+                asesor:            document.getElementById('fAsesor').value,
+                resultado_general: rBtn.dataset.v,
+                carta_enviada:     cartaSi ? 'Sí' : 'No',
+                puertas_visitadas: document.getElementById('visitaPuertas').value || 0,
+                observaciones:     document.getElementById('visitaObs').value.trim()
+            })
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || 'Error');
+        cerrarModal('portalesVisitaModal');
+        showToast('Visita registrada ✓');
+        portalesData = null;
+        await abrirDetallePortal(portalActual);
+    } catch (err) {
+        showToast('Error: ' + err.message);
+    } finally {
+        btn.disabled = false; btn.textContent = 'Guardar →';
+    }
+}
+
+// ── Modal: editar buzones ────────────────────
+
+function abrirEditarBuzones() {
+    const ficha = JSON.parse(document.getElementById('btnNuevaVisita').dataset.portal || '{}');
+    document.getElementById('buzonesEditInput').value = ficha.buzones || '';
+    document.getElementById('portalesBuzonesModal').style.display = 'flex';
+}
+
+async function guardarBuzones() {
+    const btn = document.getElementById('btnGuardarBuzones');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+        const res    = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body:   JSON.stringify({
+                action:    'actualizar_buzones',
+                id_portal: portalActual,
+                buzones:   document.getElementById('buzonesEditInput').value.trim()
+            })
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || 'Error');
+        cerrarModal('portalesBuzonesModal');
+        showToast('Buzones actualizados ✓');
+        await abrirDetallePortal(portalActual);
+    } catch (err) {
+        showToast('Error: ' + err.message);
+    } finally {
+        btn.disabled = false; btn.textContent = 'Guardar →';
+    }
+}
+
+// ── Helpers de modales ───────────────────────
+
+function cerrarModal(id) {
+    document.getElementById(id).style.display = 'none';
+}
+
+function portalesModalBackdrop(e, id) {
+    if (e.target.id === id) cerrarModal(id);
 }
