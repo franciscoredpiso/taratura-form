@@ -83,6 +83,10 @@
     <img class="home-logo" id="homeLogo" src="logo.png" alt="Logo"
          onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='logo.jpg';}else{this.style.display='none';}">
     <div class="home-buttons">
+        <button class="home-btn home-btn-portales" onclick="showScreen('portales')">
+            <span class="home-btn-icon">🏘️</span>
+            <span>Portales</span>
+        </button>
         <button class="home-btn home-btn-taratura" onclick="showScreen('taratura')">
             <span class="home-btn-icon">📋</span>
             <span>Taratura</span>
@@ -90,6 +94,7 @@
         <button class="home-btn home-btn-noticias" onclick="showScreen('noticias')">
             <span class="home-btn-icon">🔎</span>
             <span>Noticias</span>
+            <span class="home-btn-sub">En desarrollo</span>
         </button>
     </div>
     <div class="home-attribution">
@@ -372,6 +377,145 @@
     <div style="height:24px"></div>
   </div>
 
+</div>
+
+<!-- ── PORTALES SECTION ── -->
+<div id="portalesSection" style="display:none">
+
+  <!-- Lista de portales -->
+  <div id="portalesListView" class="container">
+    <div class="portales-header-row">
+      <div class="portales-header-title">Mis Portales</div>
+      <button class="portales-btn-add" onclick="abrirModalNuevoPortal()" title="Añadir portal">+</button>
+    </div>
+    <div class="portales-search-row">
+      <input type="text" id="portalesSearch" placeholder="Buscar por calle…" oninput="filtrarPortales()" autocomplete="off">
+      <button class="portales-btn-refresh" onclick="loadPortalesList(true)" title="Actualizar">↻</button>
+    </div>
+    <div id="portalesResults">
+      <div class="portales-empty">Cargando portales…</div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- Detalle de portal -->
+  <div id="portalesDetailView" class="container" style="display:none">
+    <button class="buz-back-btn" onclick="cerrarDetallePortal()">← Portales</button>
+
+    <div class="card" id="portalesDetailHeader"></div>
+
+    <button class="portales-btn-nueva-visita" id="btnNuevaVisita" onclick="abrirModalVisita()" data-portal="{}">
+      Registrar nueva visita
+    </button>
+
+    <div class="card">
+      <div class="card-label">Historial de visitas</div>
+      <div id="portalesHistorial"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label" style="margin-bottom:8px">Buzones</div>
+      <div id="portalesBuzones"></div>
+      <button class="portales-btn-editar-buzones" onclick="abrirEditarBuzones()">Editar buzones</button>
+    </div>
+
+    <div style="height:24px"></div>
+  </div>
+
+</div>
+
+<!-- Modal: Nuevo portal -->
+<div class="modal-overlay" id="portalesNuevoModal" style="display:none" onclick="portalesModalBackdrop(event,'portalesNuevoModal')">
+  <div class="modal-sheet">
+    <div class="modal-title">Nuevo portal</div>
+    <div class="input-row">
+      <div class="field calle-ac-wrap" style="flex:2">
+        <label>Calle / Vía</label>
+        <input type="text" id="portalNuevoCalle" placeholder="Ej: Calle Mayor" autocomplete="off"
+               oninput="calleAcInput('portalNuevoCalle')" onblur="calleAcBlur('portalNuevoCalle')">
+        <div class="calle-ac-list" id="portalNuevoCalle_ac"></div>
+      </div>
+      <div class="field" style="flex:1">
+        <label>Nº Portal</label>
+        <input type="text" id="portalNuevoNumero" placeholder="14" autocomplete="off">
+      </div>
+    </div>
+    <div class="input-row">
+      <div class="field" style="flex:1">
+        <label>Plantas</label>
+        <input type="number" id="portalNuevoPlantas" placeholder="4" min="1">
+      </div>
+      <div class="field" style="flex:1">
+        <label>Puertas/planta</label>
+        <input type="number" id="portalNuevoPuertas" placeholder="3" min="1">
+      </div>
+      <div class="field" style="flex:1">
+        <label>Escaleras</label>
+        <input type="number" id="portalNuevoEscaleras" placeholder="1" min="1">
+      </div>
+    </div>
+    <div class="field">
+      <label>Observaciones</label>
+      <textarea id="portalNuevoObs" placeholder="Portero, acceso, horario…" style="height:60px;width:100%;padding:9px 11px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;resize:none"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="cerrarModal('portalesNuevoModal')">Cancelar</button>
+      <button class="btn-modal-confirm" onclick="guardarNuevoPortal()">Guardar →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Registrar visita -->
+<div class="modal-overlay" id="portalesVisitaModal" style="display:none" onclick="portalesModalBackdrop(event,'portalesVisitaModal')">
+  <div class="modal-sheet">
+    <div class="modal-title">Registrar visita</div>
+    <div class="field">
+      <label>Fecha</label>
+      <input type="date" id="visitaFecha" style="width:100%;padding:9px 11px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px">
+    </div>
+    <div class="field">
+      <label>Resultado</label>
+      <div class="portales-result-btns" id="visitaResultado">
+        <button class="portales-result-btn" data-v="Completada" onclick="selectResultado(this)">Completada</button>
+        <button class="portales-result-btn" data-v="Parcial"    onclick="selectResultado(this)">Parcial</button>
+        <button class="portales-result-btn" data-v="Solo mapeo" onclick="selectResultado(this)">Solo mapeo</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>¿Carta enviada?</label>
+      <div class="portales-result-btns">
+        <button class="portales-result-btn" id="visitaCartaSi" data-v="Sí" onclick="selectCarta('Si')">Sí</button>
+        <button class="portales-result-btn portales-result-btn-active" id="visitaCartaNo" data-v="No" onclick="selectCarta('No')">No</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Puertas visitadas</label>
+      <input type="number" id="visitaPuertas" placeholder="0" min="0" style="width:100%;padding:9px 11px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px">
+    </div>
+    <div class="field">
+      <label>Observaciones</label>
+      <textarea id="visitaObs" placeholder="Notas de esta visita…" style="height:60px;width:100%;padding:9px 11px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;resize:none"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="cerrarModal('portalesVisitaModal')">Cancelar</button>
+      <button class="btn-modal-confirm" id="btnGuardarVisita" onclick="guardarVisita()">Guardar →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar buzones -->
+<div class="modal-overlay" id="portalesBuzonesModal" style="display:none" onclick="portalesModalBackdrop(event,'portalesBuzonesModal')">
+  <div class="modal-sheet">
+    <div class="modal-title">Editar buzones</div>
+    <div class="field">
+      <label>Nombres de buzones</label>
+      <textarea id="buzonesEditInput" placeholder="1A: García López, Antonio&#10;1B: Sin nombre&#10;2A: Martínez Ruiz, Carmen…" style="height:160px;width:100%;padding:9px 11px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;resize:none"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="cerrarModal('portalesBuzonesModal')">Cancelar</button>
+      <button class="btn-modal-confirm" id="btnGuardarBuzones" onclick="guardarBuzones()">Guardar →</button>
+    </div>
+  </div>
 </div>
 
 <!-- Modal: ¿a qué portal pertenecen las fotos? -->

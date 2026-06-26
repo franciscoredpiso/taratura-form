@@ -907,6 +907,10 @@
         .home-btn-icon { font-size: 38px; line-height: 1; }
         .home-btn-taratura { background: #0f172a; }
         .home-btn-noticias { background: #6366f1; }
+        .home-btn-portales { background: #0d9488; }
+        .home-btn-sub { font-size: 11px; font-weight: 600; opacity: 0.75; margin-top: -4px; }
+        .home-btn { flex: 1 1 90px; max-width: 160px; min-width: 80px; padding: 24px 10px; font-size: 16px; }
+        .home-btn-icon { font-size: 30px; }
 
         /* ── NOTICIAS SECTION ── */
         #noticiasSection { display: none; }
@@ -1249,3 +1253,162 @@
             letter-spacing: -0.3px;
         }
         .btn-registrar:disabled { background: #6ee7b7; cursor: not-allowed; }
+
+        /* ── PORTALES SECTION ── */
+        #portalesSection { display: none; }
+
+        /* Header y búsqueda */
+        .portales-header-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 16px 6px;
+        }
+        .portales-header-title {
+            font-size: 20px; font-weight: 800; color: #0f172a;
+        }
+        .portales-btn-add {
+            width: 38px; height: 38px;
+            background: #0d9488; color: white;
+            border: none; border-radius: 50%;
+            font-size: 24px; font-weight: 700; line-height: 1;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .portales-search-row {
+            display: flex; gap: 8px; padding: 0 16px 12px;
+        }
+        .portales-search-row input {
+            flex: 1; padding: 10px 12px;
+            border: 2px solid #e2e8f0; border-radius: 10px;
+            font-size: 14px; color: #1e293b; background: white;
+        }
+        .portales-search-row input:focus { outline: none; border-color: #0d9488; }
+        .portales-btn-refresh {
+            width: 42px; height: 42px;
+            background: #f1f5f9; color: #64748b;
+            border: none; border-radius: 10px;
+            font-size: 18px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .portales-btn-refresh:active { background: #e2e8f0; }
+
+        /* Lista agrupada por calle */
+        .portales-empty {
+            text-align: center; padding: 28px 16px;
+            color: #94a3b8; font-size: 14px; line-height: 1.6;
+        }
+        .portales-calle-group { margin-bottom: 4px; }
+        .portales-calle-nombre {
+            font-size: 12px; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 0.8px;
+            color: #64748b; padding: 10px 16px 4px;
+        }
+        .portales-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 16px;
+            background: white; border-bottom: 1px solid #f1f5f9;
+            cursor: pointer; -webkit-tap-highlight-color: transparent;
+        }
+        .portales-item:active { background: #f8fafc; }
+        .portales-numero { font-size: 14px; font-weight: 700; color: #0f172a; min-width: 50px; }
+        .portales-estado-badge {
+            font-size: 12px; font-weight: 700;
+            padding: 3px 9px; border-radius: 20px;
+        }
+        .portales-meta {
+            font-size: 12px; color: #94a3b8; margin-left: auto;
+        }
+
+        /* Colores de estado */
+        .estado-visitado {
+            background: #f0fdfa; color: #0d9488; border: 1.5px solid #99f6e4;
+        }
+        .estado-parcial {
+            background: #f8fafc; color: #64748b; border: 1.5px solid #cbd5e1;
+        }
+        .estado-pendiente {
+            background: #fff7ed; color: #ea580c; border: 1.5px solid #fdba74;
+        }
+
+        /* Detalle de portal */
+        .portales-detalle-titulo {
+            font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 4px;
+        }
+        .portales-detalle-edif {
+            font-size: 13px; color: #64748b; margin-bottom: 6px;
+        }
+        .portales-detalle-estado {
+            display: inline-block;
+            font-size: 13px; font-weight: 700;
+            padding: 4px 10px; border-radius: 20px; margin-bottom: 4px;
+        }
+        .portales-obs {
+            font-size: 13px; color: #475569; margin-top: 6px;
+            background: #f8fafc; border-radius: 8px; padding: 8px 10px;
+        }
+
+        /* Botón registrar visita */
+        .portales-btn-nueva-visita {
+            width: 100%; padding: 15px;
+            background: #0d9488; color: white;
+            border: none; border-radius: 12px;
+            font-size: 16px; font-weight: 800;
+            cursor: pointer; margin: 8px 0;
+            letter-spacing: -0.3px;
+        }
+        .portales-btn-nueva-visita:active { opacity: 0.85; }
+
+        /* Historial de visitas */
+        .portales-empty-sm { font-size: 13px; color: #94a3b8; padding: 8px 0; }
+        .portales-visita-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .portales-visita-item:last-child { border-bottom: none; }
+        .portales-visita-head {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+        }
+        .portales-visita-vuelta {
+            font-size: 13px; font-weight: 800; color: #0f172a;
+        }
+        .portales-visita-fecha {
+            font-size: 12px; color: #64748b;
+        }
+        .portales-visita-asesor {
+            font-size: 12px; color: #94a3b8; margin-left: auto;
+        }
+        .portales-visita-result {
+            font-size: 12px; font-weight: 600;
+            display: inline-block; padding: 2px 8px; border-radius: 12px;
+        }
+        .portales-visita-obs {
+            font-size: 12px; color: #475569; margin-top: 4px;
+        }
+
+        /* Buzones */
+        .portales-buzones-txt {
+            font-family: inherit; font-size: 13px; color: #334155;
+            white-space: pre-wrap; word-break: break-word;
+            background: #f8fafc; border-radius: 8px; padding: 10px;
+            margin-bottom: 10px; line-height: 1.6;
+        }
+        .portales-btn-editar-buzones {
+            background: #f1f5f9; color: #475569;
+            border: none; border-radius: 8px;
+            padding: 9px 16px; font-size: 13px; font-weight: 700;
+            cursor: pointer; margin-top: 4px;
+        }
+        .portales-btn-editar-buzones:active { background: #e2e8f0; }
+
+        /* Botones de resultado en los modales */
+        .portales-result-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+        .portales-result-btn {
+            flex: 1; padding: 10px 8px;
+            background: #f1f5f9; color: #475569;
+            border: 2px solid #e2e8f0; border-radius: 10px;
+            font-size: 13px; font-weight: 700; cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .portales-result-btn-active {
+            background: #f0fdfa; color: #0d9488; border-color: #0d9488;
+        }
