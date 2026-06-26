@@ -859,7 +859,7 @@ function scheduleSectionClose(toggleId) {
     clearTimeout(_sectionTimers[toggleId]);
     _sectionTimers[toggleId] = setTimeout(() => {
         document.getElementById(toggleId)?.classList.remove('open');
-    }, 1200);
+    }, 3000);
 }
 
 function refreshSectionChips(gridId, chipsId) {
