@@ -1716,12 +1716,14 @@ function showScreen(screen) {
 
     if (screen === 'home') {
         home.style.display = 'flex';
+        void home.offsetHeight;
         home.classList.add('screen-enter');
         title.textContent  = 'Captación de Inmuebles';
         homeBtn.classList.add('hidden');
 
     } else if (screen === 'taratura') {
         main.style.display = '';
+        void main.offsetHeight;
         main.classList.add('screen-enter');
         tabTaratura.classList.add('active');
         title.textContent = 'Taratura';
@@ -1729,6 +1731,7 @@ function showScreen(screen) {
 
     } else if (screen === 'noticias') {
         not.style.display = 'block';
+        void not.offsetHeight;
         not.classList.add('screen-enter');
         tabNoticias.classList.add('active');
         title.textContent = 'Noticias';
@@ -1737,6 +1740,7 @@ function showScreen(screen) {
 
     } else if (screen === 'portales') {
         por.style.display = 'block';
+        void por.offsetHeight;
         por.classList.add('screen-enter');
         tabPortales.classList.add('active');
         title.textContent = 'Portales';
@@ -1745,6 +1749,7 @@ function showScreen(screen) {
 
     } else if (screen === 'buzones') {
         buz.style.display = 'block';
+        void buz.offsetHeight;
         buz.classList.add('screen-enter');
         tabBuzones.classList.add('active');
         title.textContent = 'Buzones';
