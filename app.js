@@ -1356,6 +1356,7 @@ async function sendToServer() {
         if (!result.ok) throw new Error(result.error || 'Error en el servidor');
 
         savedSinceLastEdit  = true;
+        showSuccessOverlay();
         btn.textContent     = '✓ Guardado';
         showToast(`✓ ${result.rows_written} puerta${result.rows_written !== 1 ? 's' : ''} guardadas · Abriendo buzones…`);
         setTimeout(() => { btn.textContent = '⬇ Guardar'; btn.disabled = false; }, 2500);
@@ -1442,6 +1443,15 @@ function resetForm() {
     if (!confirm('¿Estás seguro que quieres restablecer? Todos los datos del formulario se borrarán.')) return;
     _clearAll();
     showToast('Formulario restablecido');
+}
+
+// ─────────────────────────────────────────────
+//  SUCCESS OVERLAY
+// ─────────────────────────────────────────────
+function showSuccessOverlay() {
+    const overlay = document.getElementById('successOverlay');
+    overlay.classList.add('show');
+    setTimeout(() => overlay.classList.remove('show'), 1800);
 }
 
 // ─────────────────────────────────────────────
@@ -1699,6 +1709,7 @@ function showScreen(screen) {
     not.style.display  = 'none';
     buz.style.display  = 'none';
     por.style.display  = 'none';
+    [home, main, not, buz, por].forEach(el => el.classList.remove('screen-enter'));
     tabPortales.classList.remove('active');
     tabTaratura.classList.remove('active');
     tabNoticias.classList.remove('active');
@@ -1706,17 +1717,20 @@ function showScreen(screen) {
 
     if (screen === 'home') {
         home.style.display = 'flex';
+        home.classList.add('screen-enter');
         title.textContent  = 'Captación de Inmuebles';
         homeBtn.classList.add('hidden');
 
     } else if (screen === 'taratura') {
         main.style.display = '';
+        main.classList.add('screen-enter');
         tabTaratura.classList.add('active');
         title.textContent = 'Taratura';
         homeBtn.classList.remove('hidden');
 
     } else if (screen === 'noticias') {
         not.style.display = 'block';
+        not.classList.add('screen-enter');
         tabNoticias.classList.add('active');
         title.textContent = 'Noticias';
         homeBtn.classList.remove('hidden');
@@ -1724,6 +1738,7 @@ function showScreen(screen) {
 
     } else if (screen === 'portales') {
         por.style.display = 'block';
+        por.classList.add('screen-enter');
         tabPortales.classList.add('active');
         title.textContent = 'Portales';
         homeBtn.classList.remove('hidden');
@@ -1731,6 +1746,7 @@ function showScreen(screen) {
 
     } else if (screen === 'buzones') {
         buz.style.display = 'block';
+        buz.classList.add('screen-enter');
         tabBuzones.classList.add('active');
         title.textContent = 'Buzones';
         homeBtn.classList.remove('hidden');
