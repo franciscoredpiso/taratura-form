@@ -2728,8 +2728,10 @@ async function guardarVisita() {
 // ── Modal: editar buzones ────────────────────
 
 function abrirEditarBuzones() {
-    const ficha  = JSON.parse(document.getElementById('btnNuevaVisita').dataset.portal || '{}');
+    let ficha = {};
+    try { ficha = JSON.parse(document.getElementById('btnNuevaVisita').dataset.portal || '{}'); } catch (_) {}
     const listEl = document.getElementById('buzonesEditList');
+    if (!listEl) { showToast('Error: elemento buzones no encontrado'); return; }
     listEl.innerHTML = '';
 
     // Prioridad 1: puertas reales registradas en Registros (vienen del backend)
@@ -2782,48 +2784,41 @@ function buzEditBuildListFromDoors(doors, buzonesText) {
     listEl.innerHTML = '';
     const existing = parseBuzonesText(buzonesText);
 
-    // Ordenar por posición en PISOS, luego por puerta
-    doors.sort((a, b) => {
+    // Normalizar: el backend puede devolver Piso/piso y Puerta/puerta
+    const normalized = doors.map(d => ({
+        piso:   (d.piso   || d.Piso   || '').toString().trim(),
+        puerta: (d.puerta || d.Puerta || '').toString().trim()
+    })).filter(d => d.piso && d.puerta);
+
+    // Orden descendente por piso (más alto primero), luego puerta A-Z
+    normalized.sort((a, b) => {
         const ia = PISOS.indexOf(a.piso), ib = PISOS.indexOf(b.piso);
         const na = ia >= 0 ? ia : 999, nb = ib >= 0 ? ib : 999;
-        if (na !== nb) return na - nb;
-        return (a.puerta || '').localeCompare(b.puerta || '');
-    });
-
-    // Agrupar por piso manteniendo el orden
-    const byFloor = new Map();
-    doors.forEach(d => {
-        if (!byFloor.has(d.piso)) byFloor.set(d.piso, []);
-        byFloor.get(d.piso).push(d.puerta);
+        if (na !== nb) return nb - na;
+        return (a.puerta).localeCompare(b.puerta);
     });
 
     let seqId = 0;
-    byFloor.forEach((puertas, piso) => {
-        const hdr = document.createElement('div');
-        hdr.className = 'buz-edit-floor-header';
-        hdr.textContent = piso;
-        listEl.appendChild(hdr);
+    normalized.forEach(({ piso, puerta }) => {
+        seqId++;
+        const did   = 'be' + seqId;
+        const label = piso.replace(/º$/, '') + ' ' + puerta;
+        const row   = document.createElement('div');
+        row.className      = 'buz-edit-door-row';
+        row.dataset.piso   = piso;
+        row.dataset.puerta = puerta;
+        row.innerHTML = `
+            <div class="buz-edit-door-label">${label}</div>
+            <div class="buz-door-names" id="${did}Names" onclick="document.getElementById('${did}In').focus()">
+                <div class="nombres-chips" id="${did}Chips"></div>
+                <input class="buz-door-input" id="${did}In"
+                       placeholder="Nombre + Enter"
+                       onkeydown="buzEditKeydown(event,'${did}')">
+            </div>`;
+        listEl.appendChild(row);
 
-        puertas.forEach(puerta => {
-            seqId++;
-            const did = 'be' + seqId;
-            const row = document.createElement('div');
-            row.className = 'buz-edit-door-row';
-            row.dataset.piso   = piso;
-            row.dataset.puerta = puerta;
-            row.innerHTML = `
-                <div class="buz-edit-door-label">${puerta}</div>
-                <div class="buz-door-names" id="${did}Names" onclick="document.getElementById('${did}In').focus()">
-                    <div class="nombres-chips" id="${did}Chips"></div>
-                    <input class="buz-door-input" id="${did}In"
-                           placeholder="Nombre + Enter"
-                           onkeydown="buzEditKeydown(event,'${did}')">
-                </div>`;
-            listEl.appendChild(row);
-
-            const names = existing[piso + ' ' + puerta] || existing[piso + puerta] || [];
-            names.forEach(n => addBuzEditChip(did, n));
-        });
+        const names = existing[piso + ' ' + puerta] || existing[piso + puerta] || [];
+        names.forEach(n => addBuzEditChip(did, n));
     });
 
     const firstEmpty = [...listEl.querySelectorAll('.buz-door-input')]
@@ -2835,30 +2830,26 @@ function buzEditBuildList(plantas, puertas, buzonesText) {
     const listEl = document.getElementById('buzonesEditList');
     listEl.innerHTML = '';
 
-    const pisoBase = PISOS.indexOf('1º');
-    const floors = Array.from({ length: plantas }, (_, i) => {
+    const pisoBase  = PISOS.indexOf('1º');
+    const floors    = Array.from({ length: plantas }, (_, i) => {
         const idx = pisoBase + i;
         return idx < PISOS.length ? PISOS[idx] : (i + 1) + 'º';
-    });
+    }).reverse(); // piso más alto primero
     const doorLabels = PUERTAS.slice(0, puertas);
     const existing   = parseBuzonesText(buzonesText);
 
     let seqId = 0;
     floors.forEach(piso => {
-        const hdr = document.createElement('div');
-        hdr.className = 'buz-edit-floor-header';
-        hdr.textContent = piso;
-        listEl.appendChild(hdr);
-
         doorLabels.forEach(puerta => {
             seqId++;
-            const did = 'be' + seqId;
-            const row = document.createElement('div');
-            row.className = 'buz-edit-door-row';
+            const did   = 'be' + seqId;
+            const label = piso.replace(/º$/, '') + ' ' + puerta;
+            const row   = document.createElement('div');
+            row.className      = 'buz-edit-door-row';
             row.dataset.piso   = piso;
             row.dataset.puerta = puerta;
             row.innerHTML = `
-                <div class="buz-edit-door-label">${puerta}</div>
+                <div class="buz-edit-door-label">${label}</div>
                 <div class="buz-door-names" id="${did}Names" onclick="document.getElementById('${did}In').focus()">
                     <div class="nombres-chips" id="${did}Chips"></div>
                     <input class="buz-door-input" id="${did}In"
