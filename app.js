@@ -1381,7 +1381,6 @@ async function sendToServer() {
             if (!_existing) {
                 await idbPut({ id: _buzId, calle: _calle, portal: _portal, timestamp: Date.now(), files: [], floors: [] });
             }
-            setTimeout(() => { showScreen('buzones'); openReview(_buzId); }, 1800);
         }
 
     } catch (err) {
