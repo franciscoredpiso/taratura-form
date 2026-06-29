@@ -847,6 +847,13 @@ function toggleDetail(did) {
 
     det.classList.toggle('open');
     document.getElementById(did + 'Btn').classList.toggle('open');
+
+    if (isOpening) {
+        requestAnimationFrame(() => {
+            document.getElementById(did + 'W')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }
+
     autoSave();
 }
 
