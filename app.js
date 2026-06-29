@@ -2697,7 +2697,7 @@ function renderDetallePortal(ficha, visitas) {
                 const nomBuz      = (d.nombre_buzon || buzonesMap[buzKey] || '').trim();
 
                 return `
-                <div class="ptal-puerta-row">
+                <div class="${sospechoso ? 'ptal-puerta-row ptal-puerta-sosp' : 'ptal-puerta-row'}">
                   <div class="ptal-puerta-top">
                     <span class="ptal-puerta-lbl">${label}</span>
                     <span class="ptal-puerta-badge" style="background:${badge.bg};color:${badge.color}">${badge.emoji} ${estadoLabel}</span>

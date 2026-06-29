@@ -1422,6 +1422,13 @@
             border-bottom: 1px solid #f1f5f9;
         }
         .ptal-puerta-row:last-child { border-bottom: none; }
+        .ptal-puerta-sosp {
+            background: #ffedd5;
+            border-left: 3px solid #f97316;
+            border-radius: 6px;
+            padding: 6px 8px !important;
+            margin: 2px -8px;
+        }
         .ptal-puerta-top {
             display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
         }
