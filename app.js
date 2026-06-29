@@ -1686,7 +1686,9 @@ function showScreen(screen) {
     const not         = document.getElementById('noticiasSection');
     const buz         = document.getElementById('buzSection');
     const por         = document.getElementById('portalesSection');
+    const tabPortales = document.getElementById('tabPortales');
     const tabTaratura = document.getElementById('tabTaratura');
+    const tabNoticias = document.getElementById('tabNoticias');
     const tabBuzones  = document.getElementById('tabBuzones');
     const title       = document.querySelector('.header-title');
     const homeBtn     = document.getElementById('headerHomeBtn');
@@ -1697,7 +1699,9 @@ function showScreen(screen) {
     not.style.display  = 'none';
     buz.style.display  = 'none';
     por.style.display  = 'none';
+    tabPortales.classList.remove('active');
     tabTaratura.classList.remove('active');
+    tabNoticias.classList.remove('active');
     tabBuzones.classList.remove('active');
 
     if (screen === 'home') {
@@ -1713,12 +1717,14 @@ function showScreen(screen) {
 
     } else if (screen === 'noticias') {
         not.style.display = 'block';
+        tabNoticias.classList.add('active');
         title.textContent = 'Noticias';
         homeBtn.classList.remove('hidden');
         initNoticias();
 
     } else if (screen === 'portales') {
         por.style.display = 'block';
+        tabPortales.classList.add('active');
         title.textContent = 'Portales';
         homeBtn.classList.remove('hidden');
         initPortales();
