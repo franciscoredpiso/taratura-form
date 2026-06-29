@@ -2558,12 +2558,12 @@ function portalEstadoIcon(e) {
 function ptalEstadoBadge(estado) {
     const map = {
         'Vacío':            { emoji: '🟢', color: '#065f46', bg: '#d1fae5' },
-        'En Venta':         { emoji: '🟡', color: '#78350f', bg: '#fef3c7' },
-        'Alquilado':        { emoji: '🔵', color: '#1e3a8a', bg: '#dbeafe' },
-        'Vive-Propietario': { emoji: '⚫', color: '#0f172a', bg: '#e2e8f0' },
-        'No Contesta':      { emoji: '🟠', color: '#9a3412', bg: '#ffedd5' },
+        'En Venta':         { emoji: '🟡', color: '#854d0e', bg: '#fef9c3' },
+        'Alquilado':        { emoji: '🔵', color: '#0369a1', bg: '#e0f2fe' },
+        'Vive-Propietario': { emoji: '🔵', color: '#1d4ed8', bg: '#dbeafe' },
+        'No Contesta':      { emoji: '🟠', color: '#64748b', bg: '#f1f5f9' },
     };
-    return map[estado] || { emoji: '🟠', color: '#9a3412', bg: '#ffedd5' };
+    return map[estado] || { emoji: '🟠', color: '#64748b', bg: '#f1f5f9' };
 }
 
 function ptalCaractLine(tipo, caract) {
@@ -2638,6 +2638,7 @@ function renderDetallePortal(ficha, visitas) {
         <div class="portales-detalle-titulo">${ficha.calle}, ${ficha.numero}</div>
         ${caractLine  ? `<div class="portales-detalle-caract">${caractLine}</div>` : ''}
         ${detalleEdif ? `<div class="portales-detalle-edif">${detalleEdif}</div>` : ''}
+        ${ficha.administrador  ? `<div class="portales-detalle-admin">🏢 ${ficha.administrador}${ficha.telefono_admin ? ' · 📞 ' + ficha.telefono_admin : ''}${ficha.email_admin ? ' · ' + ficha.email_admin : ''}</div>` : ''}
         <div class="portales-detalle-estado ${portalEstadoClass(ficha.estado_actual)}">${portalEstadoIcon(ficha.estado_actual)} ${ficha.estado_actual || 'Pendiente'} · ${ficha.total_vueltas || 0} ${Number(ficha.total_vueltas) === 1 ? 'vuelta' : 'vueltas'}</div>
         ${ficha.observaciones ? `<div class="portales-obs">${ficha.observaciones}</div>` : ''}
     `;
@@ -2695,9 +2696,7 @@ function renderDetallePortal(ficha, visitas) {
                 const nomBuz      = (d.nombre_buzon || buzonesMap[buzKey] || '').trim();
                 const rowClass    = sospechoso
                     ? 'ptal-puerta-row ptal-puerta-sosp'
-                    : noContesta
-                        ? 'ptal-puerta-row ptal-puerta-dim'
-                        : 'ptal-puerta-row';
+                    : 'ptal-puerta-row';
 
                 return `
                 <div class="${rowClass}">

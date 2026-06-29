@@ -1406,9 +1406,14 @@
         }
         .portales-btn-editar-buzones:active { background: #e2e8f0; }
 
-        /* Características del edificio en el encabezado del detalle */
+        /* Características y admin del edificio en el encabezado del detalle */
         .portales-detalle-caract {
             font-size: 13px; color: #475569; margin: 2px 0 4px;
+        }
+        .portales-detalle-admin {
+            font-size: 12px; color: #0d9488; font-weight: 600;
+            background: #f0fdfa; border-radius: 8px;
+            padding: 5px 10px; margin: 4px 0;
         }
 
         /* Puertas — vista por puerta en el detalle del portal */
