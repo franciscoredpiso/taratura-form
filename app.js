@@ -2692,7 +2692,7 @@ function renderDetallePortal(ficha, visitas) {
                 const noContesta  = !d.estado || d.estado === 'No Contesta';
                 const sospechoso  = noContesta && d.info;
                 const vincNotable = d.vinculo && d.vinculo !== 'Sin vínculo';
-                const buzKey      = d.piso + ' ' + d.puerta;
+                const buzKey      = d.piso.replace(/º$/, '') + ' ' + d.puerta;
                 const nomBuz      = (d.nombre_buzon || buzonesMap[buzKey] || '').trim();
                 const rowClass    = sospechoso
                     ? 'ptal-puerta-row ptal-puerta-sosp'
