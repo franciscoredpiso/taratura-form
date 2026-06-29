@@ -1,4 +1,4 @@
-﻿// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
 //  CONFIG
 // ─────────────────────────────────────────────
 const PISOS = [
@@ -2460,8 +2460,9 @@ async function registrarBuzones() {
 //  MÓDULO PORTALES
 // ═════════════════════════════════════════════
 
-let portalesData  = null;  // cache en memoria — 1 sola carga por sesión
-let portalActual  = null;  // id del portal abierto en el detalle
+let portalesData      = null;  // cache en memoria — 1 sola carga por sesión
+let portalActual      = null;  // id del portal abierto en el detalle
+let fichaPortalActual = {};    // ficha completa del portal abierto
 
 async function initPortales() {
     if (portalesData) {
@@ -2555,10 +2556,14 @@ function portalEstadoIcon(e) {
     return '●';
 }
 function portalesFmtFecha(f) {
-    const s = String(f || '');
+    const s = String(f || '').trim();
+    if (!s) return '';
+    if (s.includes('-')) {
+        const p = s.split('-');
+        if (p.length >= 3) { const day = p[2].substring(0, 2); return `${day}/${p[1]}`; }
+    }
     if (s.includes('/')) { const p = s.split('/'); return p.length >= 2 ? `${p[0]}/${p[1]}` : s; }
-    if (s.includes('-')) { const p = s.split('-'); return p.length >= 3 ? `${p[2]}/${p[1]}` : s; }
-    return s.substring(0, 10);
+    return '';
 }
 
 async function abrirDetallePortal(idPortal) {
@@ -2617,7 +2622,7 @@ function renderDetallePortal(ficha, visitas) {
         ? `<pre class="portales-buzones-txt">${ficha.buzones}</pre>`
         : '<div class="portales-empty-sm">Sin nombres de buzones aún.</div>';
 
-    document.getElementById('btnNuevaVisita').dataset.portal = JSON.stringify(ficha);
+    fichaPortalActual = ficha;
 }
 
 function cerrarDetallePortal() {
@@ -2728,8 +2733,7 @@ async function guardarVisita() {
 // ── Modal: editar buzones ────────────────────
 
 function abrirEditarBuzones() {
-    let ficha = {};
-    try { ficha = JSON.parse(document.getElementById('btnNuevaVisita').dataset.portal || '{}'); } catch (_) {}
+    const ficha = fichaPortalActual || {};
     const listEl = document.getElementById('buzonesEditList');
     if (!listEl) { showToast('Error: elemento buzones no encontrado'); return; }
     listEl.innerHTML = '';
