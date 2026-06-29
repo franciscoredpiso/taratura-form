@@ -404,9 +404,7 @@
 
     <div class="card" id="portalesDetailHeader"></div>
 
-    <button class="portales-btn-nueva-visita" id="btnNuevaVisita" onclick="abrirModalVisita()" data-portal="{}">
-      Registrar nueva visita
-    </button>
+    <button class="portales-btn-nueva-visita" id="btnNuevaVisita" onclick="abrirModalVisita()" style="display:none"></button>
 
     <div class="card">
       <div class="card-label">Historial de visitas</div>
@@ -505,12 +503,9 @@
 
 <!-- Modal: Editar buzones -->
 <div class="modal-overlay" id="portalesBuzonesModal" style="display:none" onclick="portalesModalBackdrop(event,'portalesBuzonesModal')">
-  <div class="modal-sheet">
-    <div class="modal-title">Editar buzones</div>
-    <div class="field">
-      <label>Nombres de buzones</label>
-      <textarea id="buzonesEditInput" placeholder="1A: García López, Antonio&#10;1B: Sin nombre&#10;2A: Martínez Ruiz, Carmen…" style="height:160px;width:100%;padding:9px 11px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;resize:none"></textarea>
-    </div>
+  <div class="modal-sheet modal-sheet-tall">
+    <div class="modal-title">Buzones</div>
+    <div id="buzonesEditList" class="buzones-edit-list"></div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="cerrarModal('portalesBuzonesModal')">Cancelar</button>
       <button class="btn-modal-confirm" id="btnGuardarBuzones" onclick="guardarBuzones()">Guardar →</button>
