@@ -1450,7 +1450,7 @@
             gap: 10px;
         }
         .buz-edit-door-label {
-            min-width: 44px;
+            min-width: 52px;
             height: 36px;
             display: flex;
             align-items: center;
@@ -1462,4 +1462,5 @@
             color: #475569;
             flex-shrink: 0;
             margin-top: 1px;
+            padding: 0 8px;
         }
