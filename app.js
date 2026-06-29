@@ -2689,11 +2689,10 @@ function renderDetallePortal(ficha, visitas) {
 
             puertasEl.innerHTML = puertasData.map(d => {
                 const label       = d.piso.replace(/º$/, '') + ' ' + d.puerta;
-                const noContesta  = !d.estado || d.estado === 'No Contesta';
-                const sospechoso  = noContesta && d.info;
-                const estadoKey   = sospechoso ? 'Sospechoso' : (d.estado || 'No Contesta');
-                const badge       = ptalEstadoBadge(estadoKey);
-                const vincNotable = d.vinculo && d.vinculo !== 'Sin vínculo';
+                const estadoLabel = d.estado || 'No Contesta';
+                const sospechoso  = d.vinculo === 'Sospechoso';
+                const badge       = ptalEstadoBadge(sospechoso ? 'Sospechoso' : estadoLabel);
+                const vincNotable = d.vinculo && d.vinculo !== 'Sin vínculo' && !sospechoso;
                 const buzKey      = d.piso.replace(/º$/, '') + ' ' + d.puerta;
                 const nomBuz      = (d.nombre_buzon || buzonesMap[buzKey] || '').trim();
 
@@ -2701,11 +2700,11 @@ function renderDetallePortal(ficha, visitas) {
                 <div class="ptal-puerta-row">
                   <div class="ptal-puerta-top">
                     <span class="ptal-puerta-lbl">${label}</span>
-                    <span class="ptal-puerta-badge" style="background:${badge.bg};color:${badge.color}">${badge.emoji} ${estadoKey}</span>
+                    <span class="ptal-puerta-badge" style="background:${badge.bg};color:${badge.color}">${badge.emoji} ${estadoLabel}</span>
                     ${vincNotable ? `<span class="ptal-puerta-vinc">${d.vinculo}</span>` : ''}
                   </div>
                   ${nomBuz ? `<div class="ptal-puerta-buz">${nomBuz}</div>` : ''}
-                  ${d.info  ? `<div class="ptal-puerta-info">${sospechoso ? '⚠️ ' : ''}${d.info.substring(0, 80)}</div>` : ''}
+                  ${d.info  ? `<div class="ptal-puerta-info">⚠️ ${d.info.substring(0, 80)}</div>` : ''}
                 </div>`;
             }).join('');
         }
