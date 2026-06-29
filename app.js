@@ -2690,7 +2690,7 @@ function renderDetallePortal(ficha, visitas) {
             puertasEl.innerHTML = puertasData.map(d => {
                 const label       = d.piso.replace(/º$/, '') + ' ' + d.puerta;
                 const estadoLabel = d.estado || 'No Contesta';
-                const sospechoso  = d.vinculo === 'Sospechoso';
+                const sospechoso  = (d.vinculo || '').startsWith('Sospechoso');
                 const badge       = ptalEstadoBadge(sospechoso ? 'Sospechoso' : estadoLabel);
                 const vincNotable = d.vinculo && d.vinculo !== 'Sin vínculo' && !sospechoso;
                 const buzKey      = d.piso.replace(/º$/, '') + ' ' + d.puerta;
