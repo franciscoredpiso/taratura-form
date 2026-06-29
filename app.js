@@ -2555,6 +2555,17 @@ function portalEstadoIcon(e) {
     if (e === 'Parcial')  return '◑';
     return '●';
 }
+function ptalEstadoBadge(estado) {
+    const map = {
+        'Vacío':            { emoji: '🟢', color: '#065f46', bg: '#d1fae5' },
+        'En Venta':         { emoji: '🟡', color: '#78350f', bg: '#fef3c7' },
+        'Alquilado':        { emoji: '🔵', color: '#1e3a8a', bg: '#dbeafe' },
+        'Vive-Propietario': { emoji: '⚫', color: '#0f172a', bg: '#e2e8f0' },
+        'No Contesta':      { emoji: '',   color: '#94a3b8', bg: 'transparent' },
+    };
+    return map[estado] || { emoji: '', color: '#94a3b8', bg: 'transparent' };
+}
+
 function portalesFmtFecha(f) {
     const s = String(f || '').trim();
     if (!s) return '';
@@ -2621,6 +2632,42 @@ function renderDetallePortal(ficha, visitas) {
     buzEl.innerHTML = ficha.buzones
         ? `<pre class="portales-buzones-txt">${ficha.buzones}</pre>`
         : '<div class="portales-empty-sm">Sin nombres de buzones aún.</div>';
+
+    // ── Puertas con datos de Taratura ──────────────────────────
+    const puertasData = (ficha.puertas_registradas || []).filter(d => d.piso && d.puerta);
+    const puertasCard = document.getElementById('portalesPuertasCard');
+    const puertasEl   = document.getElementById('portalesPuertas');
+    if (puertasCard && puertasEl) {
+        if (!puertasData.length) {
+            puertasCard.style.display = 'none';
+        } else {
+            puertasCard.style.display = '';
+            puertasData.sort((a, b) => {
+                const PISOS_L = ['Bajo','Entrepiso','Principal','1º','2º','3º','4º','5º','6º','7º','8º','9º','10º','11º','12º','13º','14º','15º','Ático','Sobreático'];
+                const ia = PISOS_L.indexOf(a.piso), ib = PISOS_L.indexOf(b.piso);
+                const na = ia >= 0 ? ia : 999, nb = ib >= 0 ? ib : 999;
+                if (na !== nb) return nb - na;
+                return (a.puerta || '').localeCompare(b.puerta || '');
+            });
+            puertasEl.innerHTML = puertasData.map(d => {
+                const label       = d.piso.replace(/º$/, '') + ' ' + d.puerta;
+                const badge       = ptalEstadoBadge(d.estado);
+                const esNormal    = !d.estado || d.estado === 'No Contesta';
+                const vincNotable = d.vinculo && d.vinculo !== 'Sin vínculo';
+                const extras      = [];
+                if (!esNormal && d.tipo)   extras.push(d.tipo);
+                if (!esNormal && d.caract) extras.push(d.caract.substring(0, 40));
+                return `
+                <div class="ptal-puerta-row${esNormal ? ' ptal-puerta-dim' : ''}">
+                  <span class="ptal-puerta-lbl">${label}</span>
+                  <span class="ptal-puerta-badge" style="background:${badge.bg};color:${badge.color}">${badge.emoji ? badge.emoji + ' ' : ''}${d.estado || 'No Contesta'}</span>
+                  ${vincNotable ? `<span class="ptal-puerta-vinc">${d.vinculo}</span>` : ''}
+                  ${extras.length ? `<div class="ptal-puerta-extra">${extras.join(' · ')}</div>` : ''}
+                  ${d.info ? `<div class="ptal-puerta-info">${d.info.substring(0, 80)}</div>` : ''}
+                </div>`;
+            }).join('');
+        }
+    }
 
     fichaPortalActual = ficha;
 }
