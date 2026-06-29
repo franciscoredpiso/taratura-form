@@ -568,7 +568,7 @@
         .carta-list { display: flex; flex-direction: column; gap: 6px; }
         .carta-check-item {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 10px;
             font-size: 14px;
             color: #78350f;
@@ -581,6 +581,12 @@
             user-select: none;
             transition: all 0.15s;
         }
+        .carta-item-info { display: flex; flex-direction: column; gap: 2px; }
+        .carta-item-label { font-size: 14px; font-weight: 600; }
+        .carta-tipo { font-size: 11px; font-weight: 700; }
+        .carta-tipo.sospechoso { color: #7c3aed; }
+        .carta-tipo.vacio { color: #dc2626; }
+        .carta-tipo.normal { color: #d97706; }
         .carta-check-item.done {
             background: #f0fdf4;
             border-color: #86efac;
@@ -1411,4 +1417,49 @@
         }
         .portales-result-btn-active {
             background: #f0fdfa; color: #0d9488; border-color: #0d9488;
+        }
+
+        /* Editar buzones — modal estructurado por planta/puerta */
+        .modal-sheet-tall {
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding-bottom: 24px;
+        }
+        .buzones-edit-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding-right: 2px;
+        }
+        .buz-edit-floor-header {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: #94a3b8;
+            padding-top: 16px;
+        }
+        .buz-edit-floor-header:first-child { padding-top: 0; }
+        .buz-edit-door-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .buz-edit-door-label {
+            min-width: 44px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #475569;
+            flex-shrink: 0;
+            margin-top: 1px;
         }

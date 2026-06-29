@@ -961,7 +961,11 @@ function refreshCartaList() {
             if (cartaBtn?.classList.contains('on')) {
                 const puerta = document.getElementById(did + 'Pta')?.value ?? '';
                 const label  = [piso, esc, puerta ? `Puerta ${puerta}` : ''].filter(Boolean).join(' — ');
-                items.push({ label, did });
+                const vinculos = [...document.querySelectorAll(`#${did}VincBtns .vinculo-btn.on`)]
+                    .map(btn => btn.dataset.value);
+                const esVacio      = vinculos.includes('Vacío');
+                const esSospechoso = vinculos.includes('Sospechoso (parece vacío)');
+                items.push({ label, did, esVacio, esSospechoso });
             }
         });
     });
@@ -984,7 +988,18 @@ function refreshCartaList() {
         const div  = document.createElement('div');
         div.className = 'carta-check-item' + (done ? ' done' : '');
         div.dataset.did = item.did;
-        div.innerHTML = `<div class="carta-box">${done ? '✓' : ''}</div> ${item.label}`;
+        let tipoClass, tipoText;
+        if (item.esVacio) {
+            tipoClass = 'vacio';
+            tipoText  = '📭 Carta captación — piso vacío';
+        } else if (item.esSospechoso) {
+            tipoClass = 'sospechoso';
+            tipoText  = '🕵️ Carta captación — parece vacío';
+        } else {
+            tipoClass = 'normal';
+            tipoText  = '✉️ Carta sin contacto';
+        }
+        div.innerHTML = `<div class="carta-box">${done ? '✓' : ''}</div><div class="carta-item-info"><div class="carta-item-label">${item.label}</div><div class="carta-tipo ${tipoClass}">${tipoText}</div></div>`;
         div.onclick = () => {
             div.classList.toggle('done');
             const box = div.querySelector('.carta-box');
@@ -2706,21 +2721,222 @@ async function guardarVisita() {
 // ── Modal: editar buzones ────────────────────
 
 function abrirEditarBuzones() {
-    const ficha = JSON.parse(document.getElementById('btnNuevaVisita').dataset.portal || '{}');
-    document.getElementById('buzonesEditInput').value = ficha.buzones || '';
+    const ficha  = JSON.parse(document.getElementById('btnNuevaVisita').dataset.portal || '{}');
+    const listEl = document.getElementById('buzonesEditList');
+    listEl.innerHTML = '';
+
+    // Prioridad 1: puertas reales registradas en Registros (vienen del backend)
+    if (ficha.puertas_registradas && ficha.puertas_registradas.length) {
+        buzEditBuildListFromDoors(ficha.puertas_registradas, ficha.buzones || '');
+        document.getElementById('portalesBuzonesModal').style.display = 'flex';
+        return;
+    }
+
+    // Prioridad 2: estructura guardada en el portal (Plantas + Puertas_Planta)
+    const plantas = parseInt(ficha.plantas) || 0;
+    const puertas = parseInt(ficha.puertas_planta) || 0;
+    if (plantas && puertas) {
+        buzEditBuildList(plantas, puertas, ficha.buzones || '');
+        document.getElementById('portalesBuzonesModal').style.display = 'flex';
+        return;
+    }
+
+    // Fallback: formulario manual para indicar la estructura
+    listEl.innerHTML = `
+        <div style="padding:4px 0 16px">
+            <div style="font-size:13px;color:#64748b;margin-bottom:14px">Indica la estructura del portal para ver el listado:</div>
+            <div style="display:flex;gap:12px;margin-bottom:14px">
+                <div style="flex:1">
+                    <label style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Plantas</label>
+                    <input type="number" id="buzEditPlantas" min="1" max="20" placeholder="4"
+                           style="width:100%;padding:10px 12px;border:2px solid #e2e8f0;border-radius:10px;font-size:16px;font-weight:700;text-align:center">
+                </div>
+                <div style="flex:1">
+                    <label style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Puertas/planta</label>
+                    <input type="number" id="buzEditPuertas" min="1" max="10" placeholder="2"
+                           style="width:100%;padding:10px 12px;border:2px solid #e2e8f0;border-radius:10px;font-size:16px;font-weight:700;text-align:center">
+                </div>
+            </div>
+            <button onclick="buzEditGenerar()" style="width:100%;padding:13px;background:#0f172a;color:white;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer">Generar listado →</button>
+        </div>`;
     document.getElementById('portalesBuzonesModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('buzEditPlantas')?.focus(), 80);
+}
+
+function buzEditGenerar() {
+    const plantas = parseInt(document.getElementById('buzEditPlantas')?.value) || 0;
+    const puertas = parseInt(document.getElementById('buzEditPuertas')?.value) || 0;
+    if (!plantas || !puertas) { showToast('Indica plantas y puertas/planta'); return; }
+    buzEditBuildList(plantas, puertas, '');
+}
+
+function buzEditBuildListFromDoors(doors, buzonesText) {
+    const listEl  = document.getElementById('buzonesEditList');
+    listEl.innerHTML = '';
+    const existing = parseBuzonesText(buzonesText);
+
+    // Ordenar por posición en PISOS, luego por puerta
+    doors.sort((a, b) => {
+        const ia = PISOS.indexOf(a.piso), ib = PISOS.indexOf(b.piso);
+        const na = ia >= 0 ? ia : 999, nb = ib >= 0 ? ib : 999;
+        if (na !== nb) return na - nb;
+        return (a.puerta || '').localeCompare(b.puerta || '');
+    });
+
+    // Agrupar por piso manteniendo el orden
+    const byFloor = new Map();
+    doors.forEach(d => {
+        if (!byFloor.has(d.piso)) byFloor.set(d.piso, []);
+        byFloor.get(d.piso).push(d.puerta);
+    });
+
+    let seqId = 0;
+    byFloor.forEach((puertas, piso) => {
+        const hdr = document.createElement('div');
+        hdr.className = 'buz-edit-floor-header';
+        hdr.textContent = piso;
+        listEl.appendChild(hdr);
+
+        puertas.forEach(puerta => {
+            seqId++;
+            const did = 'be' + seqId;
+            const row = document.createElement('div');
+            row.className = 'buz-edit-door-row';
+            row.dataset.piso   = piso;
+            row.dataset.puerta = puerta;
+            row.innerHTML = `
+                <div class="buz-edit-door-label">${puerta}</div>
+                <div class="buz-door-names" id="${did}Names" onclick="document.getElementById('${did}In').focus()">
+                    <div class="nombres-chips" id="${did}Chips"></div>
+                    <input class="buz-door-input" id="${did}In"
+                           placeholder="Nombre + Enter"
+                           onkeydown="buzEditKeydown(event,'${did}')">
+                </div>`;
+            listEl.appendChild(row);
+
+            const names = existing[piso + ' ' + puerta] || existing[piso + puerta] || [];
+            names.forEach(n => addBuzEditChip(did, n));
+        });
+    });
+
+    const firstEmpty = [...listEl.querySelectorAll('.buz-door-input')]
+        .find(el => el.closest('.buz-edit-door-row').querySelector('.nombre-chip') === null);
+    setTimeout(() => (firstEmpty || listEl.querySelector('.buz-door-input'))?.focus(), 80);
+}
+
+function buzEditBuildList(plantas, puertas, buzonesText) {
+    const listEl = document.getElementById('buzonesEditList');
+    listEl.innerHTML = '';
+
+    const pisoBase = PISOS.indexOf('1º');
+    const floors = Array.from({ length: plantas }, (_, i) => {
+        const idx = pisoBase + i;
+        return idx < PISOS.length ? PISOS[idx] : (i + 1) + 'º';
+    });
+    const doorLabels = PUERTAS.slice(0, puertas);
+    const existing   = parseBuzonesText(buzonesText);
+
+    let seqId = 0;
+    floors.forEach(piso => {
+        const hdr = document.createElement('div');
+        hdr.className = 'buz-edit-floor-header';
+        hdr.textContent = piso;
+        listEl.appendChild(hdr);
+
+        doorLabels.forEach(puerta => {
+            seqId++;
+            const did = 'be' + seqId;
+            const row = document.createElement('div');
+            row.className = 'buz-edit-door-row';
+            row.dataset.piso   = piso;
+            row.dataset.puerta = puerta;
+            row.innerHTML = `
+                <div class="buz-edit-door-label">${puerta}</div>
+                <div class="buz-door-names" id="${did}Names" onclick="document.getElementById('${did}In').focus()">
+                    <div class="nombres-chips" id="${did}Chips"></div>
+                    <input class="buz-door-input" id="${did}In"
+                           placeholder="Nombre + Enter"
+                           onkeydown="buzEditKeydown(event,'${did}')">
+                </div>`;
+            listEl.appendChild(row);
+
+            const names = existing[piso + ' ' + puerta] || existing[piso + puerta] || [];
+            names.forEach(n => addBuzEditChip(did, n));
+        });
+    });
+
+    const firstEmpty = [...listEl.querySelectorAll('.buz-door-input')]
+        .find(el => el.closest('.buz-edit-door-row').querySelector('.nombre-chip') === null);
+    setTimeout(() => (firstEmpty || listEl.querySelector('.buz-door-input'))?.focus(), 80);
+}
+
+function parseBuzonesText(text) {
+    const map = {};
+    if (!text) return map;
+    text.split('\n').forEach(line => {
+        const m = line.match(/^(.+?):\s*(.+)$/);
+        if (!m) return;
+        const key   = m[1].trim();
+        const names = m[2].split(/[\/,]/).map(n => n.trim()).filter(Boolean);
+        if (names.length) map[key] = names;
+    });
+    return map;
+}
+
+function buzEditKeydown(e, did) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const input = document.getElementById(did + 'In');
+    const val   = input.value.trim();
+    if (val) {
+        addBuzEditChip(did, val);
+        input.value = '';
+    } else {
+        // Enter vacío: avanzar a la siguiente puerta
+        const all = [...document.querySelectorAll('#buzonesEditList .buz-door-input')];
+        const idx = all.indexOf(input);
+        if (idx >= 0 && idx < all.length - 1) all[idx + 1].focus();
+    }
+}
+
+function addBuzEditChip(did, text) {
+    const chips = document.getElementById(did + 'Chips');
+    if (!chips) return;
+    const chip = document.createElement('div');
+    chip.className = 'nombre-chip';
+    chip.innerHTML = `${text}<button class="nombre-chip-del" onclick="this.closest('.nombre-chip').remove()" title="Eliminar">×</button>`;
+    chips.appendChild(chip);
 }
 
 async function guardarBuzones() {
     const btn = document.getElementById('btnGuardarBuzones');
     btn.disabled = true; btn.textContent = 'Guardando…';
     try {
+        // Confirmar texto pendiente en cualquier input abierto
+        document.querySelectorAll('#buzonesEditList .buz-door-input').forEach(input => {
+            if (input.value.trim()) {
+                addBuzEditChip(input.id.replace('In', ''), input.value.trim());
+                input.value = '';
+            }
+        });
+
+        // Serializar chips a texto
+        const lines = [];
+        document.querySelectorAll('#buzonesEditList .buz-edit-door-row').forEach(row => {
+            const names = [...row.querySelectorAll('.nombre-chip')]
+                           .map(c => c.childNodes[0].textContent.trim())
+                           .filter(Boolean);
+            if (names.length) {
+                lines.push(`${row.dataset.piso} ${row.dataset.puerta}: ${names.join(' / ')}`);
+            }
+        });
+
         const res    = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
             body:   JSON.stringify({
                 action:    'actualizar_buzones',
                 id_portal: portalActual,
-                buzones:   document.getElementById('buzonesEditInput').value.trim()
+                buzones:   lines.join('\n')
             })
         });
         const result = await res.json();
