@@ -2559,11 +2559,12 @@ function ptalEstadoBadge(estado) {
     const map = {
         'Vacío':            { emoji: '🟢', color: '#065f46', bg: '#d1fae5' },
         'En Venta':         { emoji: '🟡', color: '#854d0e', bg: '#fef9c3' },
-        'Alquilado':        { emoji: '🔵', color: '#0369a1', bg: '#e0f2fe' },
-        'Vive-Propietario': { emoji: '🔵', color: '#1d4ed8', bg: '#dbeafe' },
-        'No Contesta':      { emoji: '🟠', color: '#64748b', bg: '#f1f5f9' },
+        'Alquilado':        { emoji: '🔵', color: '#0369a1', bg: '#cffafe' },
+        'Vive-Propietario': { emoji: '🔵', color: '#1d4ed8', bg: '#bfdbfe' },
+        'Sospechoso':       { emoji: '🟠', color: '#9a3412', bg: '#ffedd5' },
+        'No Contesta':      { emoji: '⚪', color: '#64748b', bg: '#f1f5f9' },
     };
-    return map[estado] || { emoji: '🟠', color: '#64748b', bg: '#f1f5f9' };
+    return map[estado] || { emoji: '⚪', color: '#64748b', bg: '#f1f5f9' };
 }
 
 function ptalCaractLine(tipo, caract) {
@@ -2688,21 +2689,19 @@ function renderDetallePortal(ficha, visitas) {
 
             puertasEl.innerHTML = puertasData.map(d => {
                 const label       = d.piso.replace(/º$/, '') + ' ' + d.puerta;
-                const badge       = ptalEstadoBadge(d.estado);
                 const noContesta  = !d.estado || d.estado === 'No Contesta';
                 const sospechoso  = noContesta && d.info;
+                const estadoKey   = sospechoso ? 'Sospechoso' : (d.estado || 'No Contesta');
+                const badge       = ptalEstadoBadge(estadoKey);
                 const vincNotable = d.vinculo && d.vinculo !== 'Sin vínculo';
                 const buzKey      = d.piso.replace(/º$/, '') + ' ' + d.puerta;
                 const nomBuz      = (d.nombre_buzon || buzonesMap[buzKey] || '').trim();
-                const rowClass    = sospechoso
-                    ? 'ptal-puerta-row ptal-puerta-sosp'
-                    : 'ptal-puerta-row';
 
                 return `
-                <div class="${rowClass}">
+                <div class="ptal-puerta-row">
                   <div class="ptal-puerta-top">
                     <span class="ptal-puerta-lbl">${label}</span>
-                    <span class="ptal-puerta-badge" style="background:${badge.bg};color:${badge.color}">${badge.emoji} ${d.estado || 'No Contesta'}</span>
+                    <span class="ptal-puerta-badge" style="background:${badge.bg};color:${badge.color}">${badge.emoji} ${estadoKey}</span>
                     ${vincNotable ? `<span class="ptal-puerta-vinc">${d.vinculo}</span>` : ''}
                   </div>
                   ${nomBuz ? `<div class="ptal-puerta-buz">${nomBuz}</div>` : ''}

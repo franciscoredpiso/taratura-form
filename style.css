@@ -1425,24 +1425,12 @@
         .ptal-puerta-top {
             display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
         }
-        .ptal-puerta-dim { opacity: 0.55; }
-        .ptal-puerta-sosp {
-            background: #fff7ed;
-            border-left: 3px solid #f97316;
-            border-radius: 6px;
-            padding: 6px 8px;
-            margin: 2px -8px;
-        }
         .ptal-puerta-lbl {
             min-width: 34px; font-size: 12px; font-weight: 800; color: #334155;
         }
         .ptal-puerta-badge {
             font-size: 12px; font-weight: 600;
             padding: 2px 9px; border-radius: 20px; white-space: nowrap;
-        }
-        .ptal-puerta-dim .ptal-puerta-badge {
-            background: transparent !important;
-            color: #94a3b8 !important; font-weight: 400;
         }
         .ptal-puerta-vinc {
             font-size: 11px; color: #0d9488; font-weight: 600;
