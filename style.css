@@ -1406,14 +1406,28 @@
         }
         .portales-btn-editar-buzones:active { background: #e2e8f0; }
 
+        /* Características del edificio en el encabezado del detalle */
+        .portales-detalle-caract {
+            font-size: 13px; color: #475569; margin: 2px 0 4px;
+        }
+
         /* Puertas — vista por puerta en el detalle del portal */
         .ptal-puerta-row {
-            display: flex; flex-wrap: wrap; align-items: center;
-            gap: 5px; padding: 7px 0;
+            padding: 8px 0;
             border-bottom: 1px solid #f1f5f9;
         }
         .ptal-puerta-row:last-child { border-bottom: none; }
-        .ptal-puerta-dim { opacity: 0.38; }
+        .ptal-puerta-top {
+            display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
+        }
+        .ptal-puerta-dim { opacity: 0.55; }
+        .ptal-puerta-sosp {
+            background: #fff7ed;
+            border-left: 3px solid #f97316;
+            border-radius: 6px;
+            padding: 6px 8px;
+            margin: 2px -8px;
+        }
         .ptal-puerta-lbl {
             min-width: 34px; font-size: 12px; font-weight: 800; color: #334155;
         }
@@ -1423,20 +1437,21 @@
         }
         .ptal-puerta-dim .ptal-puerta-badge {
             background: transparent !important;
-            color: #94a3b8 !important; font-size: 11px; font-weight: 400;
+            color: #94a3b8 !important; font-weight: 400;
         }
         .ptal-puerta-vinc {
             font-size: 11px; color: #0d9488; font-weight: 600;
             background: #f0fdfa; padding: 2px 8px; border-radius: 20px;
         }
-        .ptal-puerta-extra {
-            font-size: 11px; color: #64748b;
-            width: 100%; padding-left: 39px;
+        .ptal-puerta-buz {
+            font-size: 11px; color: #64748b; font-style: italic;
+            margin-top: 2px; padding-left: 2px;
         }
         .ptal-puerta-info {
-            font-size: 10px; color: #94a3b8; font-style: italic;
-            width: 100%; padding-left: 39px;
+            font-size: 11px; color: #ea580c;
+            margin-top: 2px; padding-left: 2px;
         }
+        .ptal-puerta-dim .ptal-puerta-info { color: #94a3b8; }
 
         /* Botones de resultado en los modales */
         .portales-result-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }

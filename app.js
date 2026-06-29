@@ -2561,9 +2561,32 @@ function ptalEstadoBadge(estado) {
         'En Venta':         { emoji: '🟡', color: '#78350f', bg: '#fef3c7' },
         'Alquilado':        { emoji: '🔵', color: '#1e3a8a', bg: '#dbeafe' },
         'Vive-Propietario': { emoji: '⚫', color: '#0f172a', bg: '#e2e8f0' },
-        'No Contesta':      { emoji: '',   color: '#94a3b8', bg: 'transparent' },
+        'No Contesta':      { emoji: '🟠', color: '#9a3412', bg: '#ffedd5' },
     };
-    return map[estado] || { emoji: '', color: '#94a3b8', bg: 'transparent' };
+    return map[estado] || { emoji: '🟠', color: '#9a3412', bg: '#ffedd5' };
+}
+
+function ptalCaractLine(tipo, caract) {
+    const items = [];
+    if (tipo) {
+        const t = tipo.toLowerCase();
+        const em = t.includes('local') ? '🏪' : t.includes('garaje') || t.includes('plaza') ? '🅿️'
+                 : t.includes('trastero') ? '📦' : t.includes('terreno') || t.includes('solar') ? '🌳'
+                 : t.includes('edificio') ? '🏢' : t.includes('nave') ? '🏭' : '🏠';
+        items.push(em + ' ' + tipo);
+    }
+    if (caract) {
+        const c = caract.toLowerCase();
+        const tags = [];
+        if (c.includes('garaje') || c.includes('plaza de')) tags.push('🅿️');
+        if (c.includes('trastero'))  tags.push('📦');
+        if (c.includes('ascensor'))  tags.push('🛗');
+        if (c.includes('terraza'))   tags.push('🌿');
+        if (c.includes('jardín') || c.includes('jardin')) tags.push('🌳');
+        if (c.includes('piscina'))   tags.push('🏊');
+        items.push((tags.length ? tags.join('') + ' ' : '') + caract.substring(0, 55));
+    }
+    return items.filter(Boolean).join(' · ');
 }
 
 function portalesFmtFecha(f) {
@@ -2599,14 +2622,21 @@ async function abrirDetallePortal(idPortal) {
 }
 
 function renderDetallePortal(ficha, visitas) {
+    const puertasData = (ficha.puertas_registradas || []).filter(d => d.piso && d.puerta);
+
+    // Características del edificio: una sola vez desde la primera puerta con datos
+    const edifSrc    = puertasData.find(d => d.tipo || d.caract) || {};
+    const caractLine = ptalCaractLine(edifSrc.tipo || '', edifSrc.caract || '');
+
     const detalleEdif = [
-        ficha.plantas       ? ficha.plantas       + ' plantas'       : '',
+        ficha.plantas        ? ficha.plantas        + ' plantas'       : '',
         ficha.puertas_planta ? ficha.puertas_planta + ' puertas/planta' : '',
-        ficha.escaleras     ? ficha.escaleras     + (ficha.escaleras == 1 ? ' escalera' : ' escaleras') : ''
+        ficha.escaleras      ? ficha.escaleras + (ficha.escaleras == 1 ? ' escalera' : ' escaleras') : ''
     ].filter(Boolean).join(' · ');
 
     document.getElementById('portalesDetailHeader').innerHTML = `
         <div class="portales-detalle-titulo">${ficha.calle}, ${ficha.numero}</div>
+        ${caractLine  ? `<div class="portales-detalle-caract">${caractLine}</div>` : ''}
         ${detalleEdif ? `<div class="portales-detalle-edif">${detalleEdif}</div>` : ''}
         <div class="portales-detalle-estado ${portalEstadoClass(ficha.estado_actual)}">${portalEstadoIcon(ficha.estado_actual)} ${ficha.estado_actual || 'Pendiente'} · ${ficha.total_vueltas || 0} ${Number(ficha.total_vueltas) === 1 ? 'vuelta' : 'vueltas'}</div>
         ${ficha.observaciones ? `<div class="portales-obs">${ficha.observaciones}</div>` : ''}
@@ -2628,13 +2658,10 @@ function renderDetallePortal(ficha, visitas) {
               ${v.observaciones ? `<div class="portales-visita-obs">${v.observaciones}</div>` : ''}
             </div>`).join('');
 
-    const buzEl = document.getElementById('portalesBuzones');
-    buzEl.innerHTML = ficha.buzones
-        ? `<pre class="portales-buzones-txt">${ficha.buzones}</pre>`
-        : '<div class="portales-empty-sm">Sin nombres de buzones aún.</div>';
+    // Buzones: nombres se muestran por puerta arriba; aquí solo queda el botón editar
+    document.getElementById('portalesBuzones').innerHTML = '';
 
     // ── Puertas con datos de Taratura ──────────────────────────
-    const puertasData = (ficha.puertas_registradas || []).filter(d => d.piso && d.puerta);
     const puertasCard = document.getElementById('portalesPuertasCard');
     const puertasEl   = document.getElementById('portalesPuertas');
     if (puertasCard && puertasEl) {
@@ -2642,6 +2669,14 @@ function renderDetallePortal(ficha, visitas) {
             puertasCard.style.display = 'none';
         } else {
             puertasCard.style.display = '';
+
+            // Mapa de nombres de buzones (piso+puerta → nombres)
+            const buzonesMap = {};
+            (ficha.buzones || '').split('\n').forEach(line => {
+                const m = line.match(/^(.+?):\s*(.+)$/);
+                if (m) buzonesMap[m[1].trim()] = m[2].trim();
+            });
+
             puertasData.sort((a, b) => {
                 const PISOS_L = ['Bajo','Entrepiso','Principal','1º','2º','3º','4º','5º','6º','7º','8º','9º','10º','11º','12º','13º','14º','15º','Ático','Sobreático'];
                 const ia = PISOS_L.indexOf(a.piso), ib = PISOS_L.indexOf(b.piso);
@@ -2649,21 +2684,30 @@ function renderDetallePortal(ficha, visitas) {
                 if (na !== nb) return nb - na;
                 return (a.puerta || '').localeCompare(b.puerta || '');
             });
+
             puertasEl.innerHTML = puertasData.map(d => {
                 const label       = d.piso.replace(/º$/, '') + ' ' + d.puerta;
                 const badge       = ptalEstadoBadge(d.estado);
-                const esNormal    = !d.estado || d.estado === 'No Contesta';
+                const noContesta  = !d.estado || d.estado === 'No Contesta';
+                const sospechoso  = noContesta && d.info;
                 const vincNotable = d.vinculo && d.vinculo !== 'Sin vínculo';
-                const extras      = [];
-                if (!esNormal && d.tipo)   extras.push(d.tipo);
-                if (!esNormal && d.caract) extras.push(d.caract.substring(0, 40));
+                const buzKey      = d.piso + ' ' + d.puerta;
+                const nomBuz      = (d.nombre_buzon || buzonesMap[buzKey] || '').trim();
+                const rowClass    = sospechoso
+                    ? 'ptal-puerta-row ptal-puerta-sosp'
+                    : noContesta
+                        ? 'ptal-puerta-row ptal-puerta-dim'
+                        : 'ptal-puerta-row';
+
                 return `
-                <div class="ptal-puerta-row${esNormal ? ' ptal-puerta-dim' : ''}">
-                  <span class="ptal-puerta-lbl">${label}</span>
-                  <span class="ptal-puerta-badge" style="background:${badge.bg};color:${badge.color}">${badge.emoji ? badge.emoji + ' ' : ''}${d.estado || 'No Contesta'}</span>
-                  ${vincNotable ? `<span class="ptal-puerta-vinc">${d.vinculo}</span>` : ''}
-                  ${extras.length ? `<div class="ptal-puerta-extra">${extras.join(' · ')}</div>` : ''}
-                  ${d.info ? `<div class="ptal-puerta-info">${d.info.substring(0, 80)}</div>` : ''}
+                <div class="${rowClass}">
+                  <div class="ptal-puerta-top">
+                    <span class="ptal-puerta-lbl">${label}</span>
+                    <span class="ptal-puerta-badge" style="background:${badge.bg};color:${badge.color}">${badge.emoji} ${d.estado || 'No Contesta'}</span>
+                    ${vincNotable ? `<span class="ptal-puerta-vinc">${d.vinculo}</span>` : ''}
+                  </div>
+                  ${nomBuz ? `<div class="ptal-puerta-buz">${nomBuz}</div>` : ''}
+                  ${d.info  ? `<div class="ptal-puerta-info">${sospechoso ? '⚠️ ' : ''}${d.info.substring(0, 80)}</div>` : ''}
                 </div>`;
             }).join('');
         }
