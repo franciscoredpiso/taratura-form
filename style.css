@@ -1466,6 +1466,24 @@
             background: #f0fdfa; color: #0d9488; border-color: #0d9488;
         }
 
+        /* Puertas clickables en el detalle del portal */
+        .ptal-puerta-row { cursor: pointer; }
+        .ptal-puerta-row:active { background: #f1f5f9; border-radius: 6px; }
+        .ptal-puerta-chevron {
+            margin-left: auto; color: #cbd5e1;
+            font-size: 18px; line-height: 1; flex-shrink: 0;
+        }
+
+        /* Botón eliminar portal */
+        .portales-btn-eliminar {
+            width: 100%; padding: 13px;
+            background: #fee2e2; color: #dc2626;
+            border: none; border-radius: 12px;
+            font-size: 14px; font-weight: 700;
+            cursor: pointer; margin-top: 8px;
+        }
+        .portales-btn-eliminar:active { background: #fecaca; }
+
         /* Editar buzones — modal estructurado por planta/puerta */
         .modal-sheet-tall {
             max-height: 85vh;
@@ -1511,3 +1529,53 @@
             margin-top: 1px;
             padding: 0 8px;
         }
+
+        /* ── ANIMACIONES ── */
+        @keyframes screenEnter {
+            from { opacity: 0; transform: translateY(14px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .screen-enter { animation: screenEnter 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
+
+        .btn-submit { transition: transform 0.1s ease; }
+        .btn-submit:active { transform: scale(0.97); }
+        .home-btn { transition: transform 0.12s ease; }
+        .home-btn:active { transform: scale(0.95); }
+
+        /* ── OVERLAY DE ÉXITO ── */
+        .success-overlay {
+            position: fixed; inset: 0; z-index: 1200;
+            background: rgba(0,0,0,0.55);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+        .success-overlay.show { opacity: 1; pointer-events: auto; }
+        .success-circle { width: 96px; height: 96px; }
+        .success-circle svg { width: 100%; height: 100%; }
+        .success-circle-bg {
+            fill: none; stroke: #4ade80; stroke-width: 3;
+            stroke-dasharray: 166; stroke-dashoffset: 166;
+        }
+        .success-overlay.show .success-circle-bg {
+            animation: strokeDraw 0.45s 0.05s ease forwards;
+        }
+        .success-checkmark {
+            fill: none; stroke: #4ade80; stroke-width: 4;
+            stroke-linecap: round; stroke-linejoin: round;
+            stroke-dasharray: 50; stroke-dashoffset: 50;
+        }
+        .success-overlay.show .success-checkmark {
+            animation: strokeDraw 0.3s 0.4s ease forwards;
+        }
+        @keyframes strokeDraw { to { stroke-dashoffset: 0; } }
+        .success-label {
+            color: white; font-size: 22px; font-weight: 800;
+            margin-top: 20px; letter-spacing: -0.5px;
+            opacity: 0; transform: translateY(6px);
+        }
+        .success-overlay.show .success-label {
+            animation: successLabelIn 0.3s 0.55s ease forwards;
+        }
+        @keyframes successLabelIn { to { opacity: 1; transform: translateY(0); } }

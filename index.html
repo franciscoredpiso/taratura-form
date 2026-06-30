@@ -92,7 +92,7 @@
             <span>Taratura</span>
         </button>
         <button class="home-btn home-btn-noticias" onclick="showScreen('noticias')">
-            <span class="home-btn-icon">🔎</span>
+            <span class="home-btn-icon">🔔</span>
             <span>Noticias</span>
             <span class="home-btn-sub">En desarrollo</span>
         </button>
@@ -422,6 +422,7 @@
       <div id="portalesHistorial"></div>
     </div>
 
+    <button class="portales-btn-eliminar" onclick="eliminarPortal()">🗑 Eliminar este portal</button>
     <div style="height:24px"></div>
   </div>
 
@@ -518,6 +519,17 @@
   </div>
 </div>
 
+<!-- Modal: Ficha de puerta (datos de Taratura) -->
+<div class="modal-overlay" id="portalesPuertaModal" style="display:none" onclick="portalesModalBackdrop(event,'portalesPuertaModal')">
+  <div class="modal-sheet modal-sheet-tall">
+    <div class="modal-title" id="puertaModalTitulo">Detalle</div>
+    <div id="puertaModalCuerpo" style="overflow-y:auto;flex:1;padding-bottom:4px"></div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="cerrarModal('portalesPuertaModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: ¿a qué portal pertenecen las fotos? -->
 <div class="modal-overlay" id="buzModal" style="display:none" onclick="buzModalBackdrop(event)">
   <div class="modal-sheet">
@@ -566,6 +578,17 @@
     <span>Buzones</span>
   </button>
 </nav>
+
+<!-- Overlay animado de éxito al guardar -->
+<div class="success-overlay" id="successOverlay">
+    <div class="success-circle">
+        <svg viewBox="0 0 52 52">
+            <circle class="success-circle-bg" cx="26" cy="26" r="25"/>
+            <path class="success-checkmark" d="M14 27 L21 34 L38 17"/>
+        </svg>
+    </div>
+    <div class="success-label">¡Guardado!</div>
+</div>
 
 <script src="app.js"></script>
 </body>

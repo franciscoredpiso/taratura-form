@@ -2713,7 +2713,7 @@ function renderDetallePortal(ficha, visitas) {
                 return (a.puerta || '').localeCompare(b.puerta || '');
             });
 
-            puertasEl.innerHTML = puertasData.map(d => {
+            puertasEl.innerHTML = puertasData.map((d, idx) => {
                 const label       = d.piso.replace(/º$/, '') + ' ' + d.puerta;
                 const estadoLabel = d.estado || 'No Contesta';
                 const sospechoso  = (d.vinculo || '').startsWith('Sospechoso');
@@ -2723,11 +2723,12 @@ function renderDetallePortal(ficha, visitas) {
                 const nomBuz      = (d.nombre_buzon || buzonesMap[buzKey] || '').trim();
 
                 return `
-                <div class="${sospechoso ? 'ptal-puerta-row ptal-puerta-sosp' : 'ptal-puerta-row'}">
+                <div class="${sospechoso ? 'ptal-puerta-row ptal-puerta-sosp' : 'ptal-puerta-row'}" onclick="abrirFichaPuerta(${idx})">
                   <div class="ptal-puerta-top">
                     <span class="ptal-puerta-lbl">${label}</span>
                     <span class="ptal-puerta-badge" style="background:${badge.bg};color:${badge.color}">${badge.emoji} ${estadoLabel}</span>
                     ${vincNotable ? `<span class="ptal-puerta-vinc">${d.vinculo}</span>` : ''}
+                    <span class="ptal-puerta-chevron">›</span>
                   </div>
                   ${nomBuz ? `<div class="ptal-puerta-buz">${nomBuz}</div>` : ''}
                   ${d.info  ? `<div class="ptal-puerta-info">⚠️ ${d.info.substring(0, 80)}</div>` : ''}
@@ -2743,6 +2744,82 @@ function cerrarDetallePortal() {
     document.getElementById('portalesDetailView').style.display = 'none';
     document.getElementById('portalesListView').style.display   = '';
     portalActual = null;
+}
+
+function abrirFichaPuerta(idx) {
+    const puertas = (fichaPortalActual.puertas_registradas || []).filter(d => d.piso && d.puerta);
+    const d = puertas[idx];
+    if (!d) return;
+
+    const ficha      = fichaPortalActual;
+    const dir        = [ficha.calle, ficha.numero].filter(Boolean).join(', ');
+    const sospechoso = (d.vinculo || '').startsWith('Sospechoso');
+    const estado     = d.estado || '—';
+    const badge      = ptalEstadoBadge(sospechoso ? 'Sospechoso' : estado);
+    const esc        = v => String(v || '').replace(/</g, '&lt;');
+
+    document.getElementById('puertaModalTitulo').textContent =
+        dir + ' · ' + d.piso + ' — Puerta ' + d.puerta;
+
+    let html = `<div style="margin-bottom:14px">
+        <span style="background:${badge.bg};color:${badge.color};padding:5px 14px;border-radius:20px;font-size:13px;font-weight:700">${badge.emoji} ${estado}</span>
+    </div>`;
+
+    const filas = [
+        d.vinculo && d.vinculo !== 'Sin vínculo' ? ['Vínculo',      d.vinculo]      : null,
+        d.nombre_buzon                            ? ['Buzón',        d.nombre_buzon]  : null,
+        d.carta                                   ? ['Carta',        d.carta]          : null,
+        d.fecha_visita                            ? ['Fecha visita', d.fecha_visita]  : null,
+        d.asesor                                  ? ['Asesor',       d.asesor]         : null,
+    ].filter(Boolean);
+
+    html += filas.map(([k, v]) =>
+        `<div class="noticia-detail-row"><span>${k}</span><span>${esc(v)}</span></div>`
+    ).join('');
+
+    const textoObs = d.observaciones || d.obs || '';
+    const textoInd = d.info || d.indicios || d.info_adic || '';
+
+    if (textoObs) {
+        html += `<div style="margin-top:14px">
+            <div class="card-label" style="font-size:10px;margin-bottom:5px">Observaciones</div>
+            <div style="font-size:13px;color:#334155;line-height:1.5;background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0;white-space:pre-wrap">${esc(textoObs)}</div>
+        </div>`;
+    }
+    if (textoInd) {
+        html += `<div style="margin-top:10px">
+            <div class="card-label" style="font-size:10px;margin-bottom:5px">Notas adicionales</div>
+            <div style="font-size:13px;color:#ea580c;line-height:1.5;background:#fff7ed;padding:10px 12px;border-radius:8px;border:1px solid #fed7aa;white-space:pre-wrap">${esc(textoInd)}</div>
+        </div>`;
+    }
+
+    if (!filas.length && !textoObs && !textoInd) {
+        html += `<div style="padding:20px 0;text-align:center;color:#94a3b8;font-size:13px">Sin observaciones registradas para esta puerta.</div>`;
+    }
+
+    document.getElementById('puertaModalCuerpo').innerHTML = html;
+    document.getElementById('portalesPuertaModal').style.display = 'flex';
+}
+
+async function eliminarPortal() {
+    if (!portalActual) return;
+    const ficha  = fichaPortalActual || {};
+    const nombre = [ficha.calle, ficha.numero].filter(Boolean).join(' ') || portalActual;
+    if (!confirm(`¿Eliminar "${nombre}" de tu lista de portales?\n\nLos datos de taratura ya guardados en Registros no se borran.`)) return;
+    try {
+        const res    = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body:   JSON.stringify({ action: 'eliminar_portal', id_portal: portalActual })
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || 'Error');
+        showToast(`"${nombre}" eliminado ✓`);
+        portalesData = null;
+        cerrarDetallePortal();
+        await loadPortalesList(true);
+    } catch (err) {
+        showToast('Error: ' + err.message);
+    }
 }
 
 // ── Modal: nuevo portal ──────────────────────
