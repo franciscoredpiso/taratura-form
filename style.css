@@ -1466,6 +1466,24 @@
             background: #f0fdfa; color: #0d9488; border-color: #0d9488;
         }
 
+        /* Puertas clickables en el detalle del portal */
+        .ptal-puerta-row { cursor: pointer; }
+        .ptal-puerta-row:active { background: #f1f5f9; border-radius: 6px; }
+        .ptal-puerta-chevron {
+            margin-left: auto; color: #cbd5e1;
+            font-size: 18px; line-height: 1; flex-shrink: 0;
+        }
+
+        /* Botón eliminar portal */
+        .portales-btn-eliminar {
+            width: 100%; padding: 13px;
+            background: #fee2e2; color: #dc2626;
+            border: none; border-radius: 12px;
+            font-size: 14px; font-weight: 700;
+            cursor: pointer; margin-top: 8px;
+        }
+        .portales-btn-eliminar:active { background: #fecaca; }
+
         /* Editar buzones — modal estructurado por planta/puerta */
         .modal-sheet-tall {
             max-height: 85vh;

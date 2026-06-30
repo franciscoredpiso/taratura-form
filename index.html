@@ -422,6 +422,7 @@
       <div id="portalesHistorial"></div>
     </div>
 
+    <button class="portales-btn-eliminar" onclick="eliminarPortal()">🗑 Eliminar este portal</button>
     <div style="height:24px"></div>
   </div>
 
@@ -514,6 +515,17 @@
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="cerrarModal('portalesBuzonesModal')">Cancelar</button>
       <button class="btn-modal-confirm" id="btnGuardarBuzones" onclick="guardarBuzones()">Guardar →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Ficha de puerta (datos de Taratura) -->
+<div class="modal-overlay" id="portalesPuertaModal" style="display:none" onclick="portalesModalBackdrop(event,'portalesPuertaModal')">
+  <div class="modal-sheet modal-sheet-tall">
+    <div class="modal-title" id="puertaModalTitulo">Detalle</div>
+    <div id="puertaModalCuerpo" style="overflow-y:auto;flex:1;padding-bottom:4px"></div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="cerrarModal('portalesPuertaModal')">Cerrar</button>
     </div>
   </div>
 </div>
