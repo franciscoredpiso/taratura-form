@@ -404,6 +404,23 @@
 
     <div class="card" id="portalesDetailHeader"></div>
 
+    <div class="card" id="portalesEdificioCard" style="display:none">
+      <div class="card-label" style="margin-bottom:10px">Información del edificio</div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Notas del edificio</div>
+        <textarea id="portalEditNotas" placeholder="Portero, acceso, referencias…" style="width:100%;padding:9px 11px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;color:#1e293b;background:#f8fafc;resize:none;height:60px;box-sizing:border-box"></textarea>
+      </div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Administración</div>
+        <input type="text" id="portalEditAdmin" placeholder="Empresa administradora" style="width:100%;padding:9px 11px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;color:#1e293b;background:#f8fafc;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Teléfono admin</div>
+        <input type="tel" id="portalEditAdminTel" placeholder="Ej. 91 234 56 78" style="width:100%;padding:9px 11px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;color:#1e293b;background:#f8fafc;box-sizing:border-box">
+      </div>
+      <button id="btnGuardarEdificio" onclick="guardarDatosEdificio()" style="width:100%;padding:12px;background:#0f172a;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">Guardar cambios →</button>
+    </div>
+
     <button class="portales-btn-nueva-visita" id="btnNuevaVisita" onclick="abrirModalVisita()" style="display:none"></button>
 
     <div class="card" id="portalesPuertasCard" style="display:none">
@@ -526,6 +543,7 @@
     <div id="puertaModalCuerpo" style="overflow-y:auto;flex:1;padding-bottom:4px"></div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="cerrarModal('portalesPuertaModal')">Cerrar</button>
+      <button class="btn-modal-confirm" id="btnGuardarPuerta" onclick="guardarDatosPuerta()" style="display:none">Guardar →</button>
     </div>
   </div>
 </div>

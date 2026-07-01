@@ -2665,10 +2665,18 @@ function renderDetallePortal(ficha, visitas) {
         <div class="portales-detalle-titulo">${ficha.calle}, ${ficha.numero}</div>
         ${caractLine  ? `<div class="portales-detalle-caract">${caractLine}</div>` : ''}
         ${detalleEdif ? `<div class="portales-detalle-edif">${detalleEdif}</div>` : ''}
-        ${ficha.administrador  ? `<div class="portales-detalle-admin">🏢 ${ficha.administrador}${ficha.telefono_admin ? ' · 📞 ' + ficha.telefono_admin : ''}${ficha.email_admin ? ' · ' + ficha.email_admin : ''}</div>` : ''}
         <div class="portales-detalle-estado ${portalEstadoClass(ficha.estado_actual)}">${portalEstadoIcon(ficha.estado_actual)} ${ficha.estado_actual || 'Pendiente'} · ${ficha.total_vueltas || 0} ${Number(ficha.total_vueltas) === 1 ? 'vuelta' : 'vueltas'}</div>
         ${ficha.observaciones ? `<div class="portales-obs">${ficha.observaciones}</div>` : ''}
     `;
+
+    // Poblamos el card editable de edificio
+    const edificioCard = document.getElementById('portalesEdificioCard');
+    if (edificioCard) {
+        document.getElementById('portalEditNotas').value    = ficha.notas_edificio  || '';
+        document.getElementById('portalEditAdmin').value    = ficha.administrador   || '';
+        document.getElementById('portalEditAdminTel').value = ficha.telefono_admin  || '';
+        edificioCard.style.display = '';
+    }
 
     const histEl = document.getElementById('portalesHistorial');
     histEl.innerHTML = visitas.length === 0
@@ -2743,7 +2751,89 @@ function renderDetallePortal(ficha, visitas) {
 function cerrarDetallePortal() {
     document.getElementById('portalesDetailView').style.display = 'none';
     document.getElementById('portalesListView').style.display   = '';
+    const edificioCard = document.getElementById('portalesEdificioCard');
+    if (edificioCard) edificioCard.style.display = 'none';
     portalActual = null;
+}
+
+async function guardarDatosEdificio() {
+    if (!fichaPortalActual) return;
+    const notas_ed      = document.getElementById('portalEditNotas').value.trim();
+    const admin_empresa = document.getElementById('portalEditAdmin').value.trim();
+    const admin_tel     = document.getElementById('portalEditAdminTel').value.trim();
+    const btn = document.getElementById('btnGuardarEdificio');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+        const res    = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body:   JSON.stringify({
+                action:        'actualizar_datos_edificio',
+                calle:         fichaPortalActual.calle,
+                numero:        fichaPortalActual.numero,
+                notas_ed,
+                admin_empresa,
+                admin_tel,
+                autor:         localStorage.getItem('tz_asesor') || ''
+            })
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || 'Error guardando');
+        fichaPortalActual.notas_edificio = notas_ed;
+        fichaPortalActual.administrador  = admin_empresa;
+        fichaPortalActual.telefono_admin = admin_tel;
+        showToast('✓ Datos del edificio guardados');
+    } catch (err) {
+        showToast('Error: ' + err.message);
+    } finally {
+        btn.disabled = false; btn.textContent = 'Guardar cambios →';
+    }
+}
+
+async function guardarDatosPuerta() {
+    const data = window._puertaActualData;
+    if (!data) return;
+    const nombre   = document.getElementById('puertaEditNombre').value.trim();
+    const telefono = document.getElementById('puertaEditTelefono').value.trim();
+    if (nombre === data.nombre && telefono === data.telefono) {
+        showToast('Sin cambios');
+        cerrarModal('portalesPuertaModal');
+        return;
+    }
+    const btn = document.getElementById('btnGuardarPuerta');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+        const res    = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body:   JSON.stringify({
+                action:   'actualizar_puerta',
+                calle:    data.calle,
+                numero:   data.numero,
+                escalera: data.escalera,
+                piso:     data.piso,
+                puerta:   data.puerta,
+                nombre,
+                telefono,
+                autor:    localStorage.getItem('tz_asesor') || ''
+            })
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || 'Error guardando');
+        // Actualizar caché local para reflejar el cambio sin recargar
+        const puertas = (fichaPortalActual.puertas_registradas || []);
+        const entry = puertas.find(p =>
+            p.piso === data.piso && p.puerta === data.puerta &&
+            (p.escalera || '') === data.escalera
+        );
+        if (entry) { entry.nombre = nombre; entry.telefono = telefono; }
+        window._puertaActualData.nombre   = nombre;
+        window._puertaActualData.telefono = telefono;
+        showToast('✓ Datos guardados');
+        cerrarModal('portalesPuertaModal');
+    } catch (err) {
+        showToast('Error: ' + err.message);
+    } finally {
+        btn.disabled = false; btn.textContent = 'Guardar →';
+    }
 }
 
 function abrirFichaPuerta(idx) {
@@ -2797,7 +2887,34 @@ function abrirFichaPuerta(idx) {
         html += `<div style="padding:20px 0;text-align:center;color:#94a3b8;font-size:13px">Sin observaciones registradas para esta puerta.</div>`;
     }
 
+    // Sección editable: Nombre Vecino y Teléfono
+    html += `<div style="margin-top:18px;border-top:1px solid #e2e8f0;padding-top:14px">
+        <div class="card-label" style="font-size:10px;margin-bottom:10px">Editar datos del vecino</div>
+        <div style="margin-bottom:10px">
+            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Nombre vecino</div>
+            <input type="text" id="puertaEditNombre" value="${esc(d.nombre || '')}" placeholder="Nombre del propietario / inquilino"
+                   style="width:100%;padding:9px 11px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;color:#1e293b;background:#f8fafc;box-sizing:border-box">
+        </div>
+        <div>
+            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Teléfono</div>
+            <input type="tel" id="puertaEditTelefono" value="${esc(d.telefono || '')}" placeholder="Ej. 612 345 678"
+                   style="width:100%;padding:9px 11px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;color:#1e293b;background:#f8fafc;box-sizing:border-box">
+        </div>
+    </div>`;
+
+    // Guardamos referencia para la función de guardar
+    window._puertaActualData = {
+        calle:    ficha.calle,
+        numero:   ficha.numero,
+        escalera: d.escalera || '',
+        piso:     d.piso,
+        puerta:   d.puerta,
+        nombre:   d.nombre   || '',
+        telefono: d.telefono || ''
+    };
+
     document.getElementById('puertaModalCuerpo').innerHTML = html;
+    document.getElementById('btnGuardarPuerta').style.display = '';
     document.getElementById('portalesPuertaModal').style.display = 'flex';
 }
 
