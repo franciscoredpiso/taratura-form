@@ -2559,11 +2559,13 @@ function renderPortalesList() {
         for (const p of portales) {
             const vueltas  = p.total_vueltas > 0 ? ` V${p.total_vueltas}` : '';
             const fechaStr = p.ultima_visita ? ' · ' + portalesFmtFecha(p.ultima_visita) : '';
+            const obs      = String(p.observaciones || '').trim();
             html += `
               <div class="portales-item" onclick="abrirDetallePortal('${p.id_portal}')">
                 <span class="portales-numero">Nº ${p.numero}</span>
                 <span class="portales-estado-badge ${portalEstadoClass(p.estado_actual)}">${portalEstadoIcon(p.estado_actual)} ${p.estado_actual || 'Pendiente'}</span>
                 <span class="portales-meta">${vueltas}${fechaStr}</span>
+                ${obs ? `<span class="portales-item-obs">${obs}</span>` : ''}
               </div>`;
         }
         html += `</div>`;
