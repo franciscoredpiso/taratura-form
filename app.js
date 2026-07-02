@@ -1,4 +1,4 @@
-// ─────────────────────────────────────────────
+﻿// ─────────────────────────────────────────────
 //  CONFIG
 // ─────────────────────────────────────────────
 const PISOS = [
@@ -2679,9 +2679,29 @@ function renderDetallePortal(ficha, visitas) {
     }
 
     const histEl = document.getElementById('portalesHistorial');
-    histEl.innerHTML = visitas.length === 0
+    const visitasOrdenadas = [...visitas].sort((a, b) => Number(b.vuelta || 0) - Number(a.vuelta || 0));
+
+    function buildVisitaDiff(curr, prev) {
+        const partes = [];
+        if (curr.resultado_general && prev.resultado_general && curr.resultado_general !== prev.resultado_general) {
+            partes.push(`${prev.resultado_general} → ${curr.resultado_general}`);
+        }
+        const cp = Number(curr.puertas_visitadas) || 0;
+        const pp = Number(prev.puertas_visitadas) || 0;
+        if (cp !== pp && pp > 0) {
+            const d = cp - pp;
+            partes.push((d > 0 ? '+' : '') + d + ' puertas');
+        }
+        return partes.join(' · ');
+    }
+
+    histEl.innerHTML = visitasOrdenadas.length === 0
         ? '<div class="portales-empty-sm">Sin visitas registradas aún.</div>'
-        : visitas.map(v => `
+        : visitasOrdenadas.map((v, i) => {
+            const diffStr = (i === 0 && visitasOrdenadas.length > 1)
+                ? buildVisitaDiff(v, visitasOrdenadas[1])
+                : '';
+            return `
             <div class="portales-visita-item">
               <div class="portales-visita-head">
                 <span class="portales-visita-vuelta">Vuelta ${v.vuelta}</span>
@@ -2691,8 +2711,10 @@ function renderDetallePortal(ficha, visitas) {
               <div class="portales-visita-result ${portalEstadoClass(v.resultado_general === 'Completada' ? 'Visitado' : v.resultado_general === 'Parcial' ? 'Parcial' : 'Pendiente')}">
                 ${v.resultado_general || ''}${v.carta_enviada === 'Sí' ? ' · Carta enviada' : ''}${v.puertas_visitadas ? ` · ${v.puertas_visitadas} puertas` : ''}
               </div>
+              ${diffStr ? `<div class="portales-visita-diff">vs anterior: ${diffStr}</div>` : ''}
               ${v.observaciones ? `<div class="portales-visita-obs">${v.observaciones}</div>` : ''}
-            </div>`).join('');
+            </div>`;
+        }).join('');
 
     // Buzones: nombres se muestran por puerta arriba; aquí solo queda el botón editar
     document.getElementById('portalesBuzones').innerHTML = '';
@@ -2936,6 +2958,9 @@ async function eliminarPortal() {
         await loadPortalesList(true);
     } catch (err) {
         showToast('Error: ' + err.message);
+        portalesData = null;
+        cerrarDetallePortal();
+        await loadPortalesList(true);
     }
 }
 
@@ -3270,3 +3295,5 @@ function cerrarModal(id) {
 function portalesModalBackdrop(e, id) {
     if (e.target.id === id) cerrarModal(id);
 }
+
+
