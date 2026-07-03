@@ -2839,8 +2839,10 @@ async function guardarDatosPuerta() {
     if (!data) return;
     const nombre    = document.getElementById('puertaEditNombre').value.trim();
     const telefono  = document.getElementById('puertaEditTelefono').value.trim();
-    const vinculo   = document.getElementById('puertaEditVinculo')?.value   || '';
-    const info_adic = (document.getElementById('puertaEditInfoAdic')?.value || '').trim();
+    const vinculo   = [...document.querySelectorAll('#puertaModalCuerpo .puerta-vinc-btn.on')]
+                        .map(el => el.dataset.value).join(' | ');
+    const info_adic = [...document.querySelectorAll('#puertaModalCuerpo .indicio-item.on')]
+                        .map(el => el.dataset.label).join(' | ');
 
     if (nombre === data.nombre && telefono === data.telefono &&
         vinculo === data.vinculo && info_adic === data.info_adic) {
@@ -2963,22 +2965,32 @@ function abrirFichaPuerta(idx) {
     html += `</div>`;
 
     // ── Editar datos del vecino ─────────────────────────────────
-    const vinculoOpts = VINCULOS_BTN.map(v =>
-        `<option value="${v.v}"${d.vinculo === v.v ? ' selected' : ''}>${v.icon} ${v.v}</option>`
+    const currentVinculos = (d.vinculo || '').split('|').map(v => v.trim()).filter(Boolean);
+    const vincPills = VINCULOS_BTN.map(v =>
+        `<div class="vinculo-btn puerta-vinc-btn${currentVinculos.includes(v.v) ? ' on' : ''}"
+              data-value="${v.v}" onclick="this.classList.toggle('on')">
+            <span class="vb-icon">${v.icon}</span> ${v.v}
+         </div>`
+    ).join('');
+
+    const currentIndicios = (d.info || '').split('|').map(v => v.trim()).filter(Boolean);
+    const indPills = INDICIOS.map(ind =>
+        `<div class="indicio-item${currentIndicios.includes(ind.label) ? ' on' : ''}"
+              data-label="${ind.label}"
+              onclick="this.classList.toggle('on')">
+            <span class="ind-icon">${ind.icon}</span>${ind.label}
+         </div>`
     ).join('');
 
     html += `<div style="margin-top:18px;border-top:1px solid #e2e8f0;padding-top:14px">
         <div class="card-label" style="font-size:10px;margin-bottom:10px">Editar datos del vecino</div>
-        <div style="margin-bottom:10px">
-            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Vínculo</div>
-            <select id="puertaEditVinculo" style="width:100%;padding:9px 11px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;color:#1e293b;background:#f8fafc;box-sizing:border-box">
-                <option value="">— Sin vínculo —</option>
-                ${vinculoOpts}
-            </select>
+        <div style="margin-bottom:12px">
+            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Vínculo con el inmueble</div>
+            <div class="vinculo-grid">${vincPills}</div>
         </div>
-        <div style="margin-bottom:10px">
-            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Información adicional</div>
-            <textarea id="puertaEditInfoAdic" placeholder="Indicios, referencias, notas…" style="width:100%;padding:9px 11px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;color:#1e293b;background:#f8fafc;resize:none;height:58px;box-sizing:border-box">${esc(d.info || '')}</textarea>
+        <div style="margin-bottom:12px">
+            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Información adicional</div>
+            <div class="indicios-grid">${indPills}</div>
         </div>
         <div style="margin-bottom:10px">
             <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Nombre vecino</div>
