@@ -2837,9 +2837,13 @@ async function guardarDatosEdificio() {
 async function guardarDatosPuerta() {
     const data = window._puertaActualData;
     if (!data) return;
-    const nombre   = document.getElementById('puertaEditNombre').value.trim();
-    const telefono = document.getElementById('puertaEditTelefono').value.trim();
-    if (nombre === data.nombre && telefono === data.telefono) {
+    const nombre    = document.getElementById('puertaEditNombre').value.trim();
+    const telefono  = document.getElementById('puertaEditTelefono').value.trim();
+    const vinculo   = document.getElementById('puertaEditVinculo')?.value   || '';
+    const info_adic = (document.getElementById('puertaEditInfoAdic')?.value || '').trim();
+
+    if (nombre === data.nombre && telefono === data.telefono &&
+        vinculo === data.vinculo && info_adic === data.info_adic) {
         showToast('Sin cambios');
         cerrarModal('portalesPuertaModal');
         return;
@@ -2858,20 +2862,28 @@ async function guardarDatosPuerta() {
                 puerta:   data.puerta,
                 nombre,
                 telefono,
+                vinculo,
+                info_adic,
                 autor:    localStorage.getItem('tz_asesor') || ''
             })
         });
         const result = await res.json();
         if (!result.ok) throw new Error(result.error || 'Error guardando');
         // Actualizar caché local para reflejar el cambio sin recargar
-        const puertas = (fichaPortalActual.puertas_registradas || []);
-        const entry = puertas.find(p =>
+        const entry = (fichaPortalActual.puertas_registradas || []).find(p =>
             p.piso === data.piso && p.puerta === data.puerta &&
             (p.escalera || '') === data.escalera
         );
-        if (entry) { entry.nombre = nombre; entry.telefono = telefono; }
-        window._puertaActualData.nombre   = nombre;
-        window._puertaActualData.telefono = telefono;
+        if (entry) {
+            entry.nombre   = nombre;
+            entry.telefono = telefono;
+            entry.vinculo  = vinculo;
+            entry.info     = info_adic;
+        }
+        window._puertaActualData.nombre    = nombre;
+        window._puertaActualData.telefono  = telefono;
+        window._puertaActualData.vinculo   = vinculo;
+        window._puertaActualData.info_adic = info_adic;
         showToast('✓ Datos guardados');
         cerrarModal('portalesPuertaModal');
     } catch (err) {
@@ -2884,6 +2896,7 @@ async function guardarDatosPuerta() {
 function abrirFichaPuerta(idx) {
     const d = puertasOrdenadas[idx];
     if (!d) return;
+    window._puertaActualIdx = idx;
 
     const ficha      = fichaPortalActual;
     const dir        = [ficha.calle, ficha.numero].filter(Boolean).join(', ');
@@ -2950,8 +2963,23 @@ function abrirFichaPuerta(idx) {
     html += `</div>`;
 
     // ── Editar datos del vecino ─────────────────────────────────
+    const vinculoOpts = VINCULOS_BTN.map(v =>
+        `<option value="${v.v}"${d.vinculo === v.v ? ' selected' : ''}>${v.icon} ${v.v}</option>`
+    ).join('');
+
     html += `<div style="margin-top:18px;border-top:1px solid #e2e8f0;padding-top:14px">
         <div class="card-label" style="font-size:10px;margin-bottom:10px">Editar datos del vecino</div>
+        <div style="margin-bottom:10px">
+            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Vínculo</div>
+            <select id="puertaEditVinculo" style="width:100%;padding:9px 11px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;color:#1e293b;background:#f8fafc;box-sizing:border-box">
+                <option value="">— Sin vínculo —</option>
+                ${vinculoOpts}
+            </select>
+        </div>
+        <div style="margin-bottom:10px">
+            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Información adicional</div>
+            <textarea id="puertaEditInfoAdic" placeholder="Indicios, referencias, notas…" style="width:100%;padding:9px 11px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;color:#1e293b;background:#f8fafc;resize:none;height:58px;box-sizing:border-box">${esc(d.info || '')}</textarea>
+        </div>
         <div style="margin-bottom:10px">
             <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Nombre vecino</div>
             <input type="text" id="puertaEditNombre" value="${esc(d.nombre || '')}" placeholder="Nombre del propietario / inquilino"
@@ -2966,13 +2994,15 @@ function abrirFichaPuerta(idx) {
 
     // Guardamos referencia para las funciones de guardar
     window._puertaActualData = {
-        calle:    ficha.calle,
-        numero:   ficha.numero,
-        escalera: d.escalera || '',
-        piso:     d.piso,
-        puerta:   d.puerta,
-        nombre:   d.nombre   || '',
-        telefono: d.telefono || '',
+        calle:     ficha.calle,
+        numero:    ficha.numero,
+        escalera:  d.escalera  || '',
+        piso:      d.piso,
+        puerta:    d.puerta,
+        nombre:    d.nombre    || '',
+        telefono:  d.telefono  || '',
+        vinculo:   d.vinculo   || '',
+        info_adic: d.info      || '',
         doorKey
     };
 
@@ -2986,8 +3016,15 @@ function abrirModalObsPuerta() {
     const titulo = [p.piso, 'Puerta ' + p.puerta].filter(Boolean).join(' — ');
     document.getElementById('obsPuertaModalTitulo').textContent = titulo || 'Nueva observación';
     document.getElementById('obsPuertaTexto').value = '';
+    // Ocultar modal de puerta para que éste quede por encima (está antes en el DOM)
+    document.getElementById('portalesPuertaModal').style.display = 'none';
     document.getElementById('portalesObsPuertaModal').style.display = 'flex';
     setTimeout(() => document.getElementById('obsPuertaTexto')?.focus(), 80);
+}
+
+function cancelarObsPuerta() {
+    cerrarModal('portalesObsPuertaModal');
+    if (window._puertaActualIdx !== undefined) abrirFichaPuerta(window._puertaActualIdx);
 }
 
 async function guardarObsPuerta() {
