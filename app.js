@@ -2489,6 +2489,8 @@ async function registrarBuzones() {
 let portalesData      = null;  // cache en memoria — 1 sola carga por sesión
 let portalActual      = null;  // id del portal abierto en el detalle
 let fichaPortalActual = {};    // ficha completa del portal abierto
+let puertasOrdenadas  = [];    // puertas del portal actual en el orden visual (alto → bajo)
+let obsPuertasActual  = {};    // historial de observaciones por puerta { clave: [{fecha,autor,obs}] }
 
 async function initPortales() {
     if (portalesData) {
@@ -2559,11 +2561,13 @@ function renderPortalesList() {
         for (const p of portales) {
             const vueltas  = p.total_vueltas > 0 ? ` V${p.total_vueltas}` : '';
             const fechaStr = p.ultima_visita ? ' · ' + portalesFmtFecha(p.ultima_visita) : '';
+            const obs      = String(p.observaciones || '').trim();
             html += `
               <div class="portales-item" onclick="abrirDetallePortal('${p.id_portal}')">
                 <span class="portales-numero">Nº ${p.numero}</span>
                 <span class="portales-estado-badge ${portalEstadoClass(p.estado_actual)}">${portalEstadoIcon(p.estado_actual)} ${p.estado_actual || 'Pendiente'}</span>
                 <span class="portales-meta">${vueltas}${fechaStr}</span>
+                ${obs ? `<span class="portales-item-obs">${obs}</span>` : ''}
               </div>`;
         }
         html += `</div>`;
@@ -2641,14 +2645,15 @@ async function abrirDetallePortal(idPortal) {
         });
         const result = await res.json();
         if (!result.ok) throw new Error(result.error || 'Error');
-        renderDetallePortal(result.ficha, result.visitas || []);
+        obsPuertasActual = result.obs_puertas || {};
+        renderDetallePortal(result.ficha, result.visitas || [], result.notas || []);
     } catch (err) {
         document.getElementById('portalesDetailHeader').innerHTML =
             `<div class="portales-empty">Error al cargar.<br><button onclick="abrirDetallePortal('${idPortal}')" style="margin-top:8px;padding:8px 16px;background:#0d9488;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer">Reintentar</button></div>`;
     }
 }
 
-function renderDetallePortal(ficha, visitas) {
+function renderDetallePortal(ficha, visitas, notas = []) {
     const puertasData = (ficha.puertas_registradas || []).filter(d => d.piso && d.puerta);
 
     // Características del edificio: una sola vez desde la primera puerta con datos
@@ -2717,7 +2722,24 @@ function renderDetallePortal(ficha, visitas) {
         }).join('');
 
     // Buzones: nombres se muestran por puerta arriba; aquí solo queda el botón editar
-    document.getElementById('portalesBuzones').innerHTML = '';
+    document.getElementById('portalesBuzones').innerHTML = (ficha.buzones && ficha.buzones.trim())
+        ? ''
+        : '<div class="portales-aviso-buzones">⚠ Buzones pendientes de completar</div>';
+
+    // ── Observaciones (historial de notas) ─────────────────────
+    const notasEl = document.getElementById('portalesNotas');
+    if (notasEl) {
+        if (!notas.length) {
+            notasEl.innerHTML = '<div class="portales-empty-sm">Sin observaciones aún.</div>';
+        } else {
+            const sorted = [...notas].sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+            notasEl.innerHTML = sorted.map(n => `
+                <div class="portal-nota-item">
+                    <div class="portal-nota-meta">${n.autor || ''}${n.autor && n.fecha ? ' · ' : ''}${n.fecha || ''}</div>
+                    <div class="portal-nota-texto">${n.nota || ''}</div>
+                </div>`).join('');
+        }
+    }
 
     // ── Puertas con datos de Taratura ──────────────────────────
     const puertasCard = document.getElementById('portalesPuertasCard');
@@ -2742,6 +2764,7 @@ function renderDetallePortal(ficha, visitas) {
                 if (na !== nb) return nb - na;
                 return (a.puerta || '').localeCompare(b.puerta || '');
             });
+            puertasOrdenadas = puertasData;
 
             puertasEl.innerHTML = puertasData.map((d, idx) => {
                 const label       = d.piso.replace(/º$/, '') + ' ' + d.puerta;
@@ -2859,8 +2882,7 @@ async function guardarDatosPuerta() {
 }
 
 function abrirFichaPuerta(idx) {
-    const puertas = (fichaPortalActual.puertas_registradas || []).filter(d => d.piso && d.puerta);
-    const d = puertas[idx];
+    const d = puertasOrdenadas[idx];
     if (!d) return;
 
     const ficha      = fichaPortalActual;
@@ -2894,7 +2916,7 @@ function abrirFichaPuerta(idx) {
 
     if (textoObs) {
         html += `<div style="margin-top:14px">
-            <div class="card-label" style="font-size:10px;margin-bottom:5px">Observaciones</div>
+            <div class="card-label" style="font-size:10px;margin-bottom:5px">Última observación (Taratura)</div>
             <div style="font-size:13px;color:#334155;line-height:1.5;background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0;white-space:pre-wrap">${esc(textoObs)}</div>
         </div>`;
     }
@@ -2905,11 +2927,29 @@ function abrirFichaPuerta(idx) {
         </div>`;
     }
 
-    if (!filas.length && !textoObs && !textoInd) {
-        html += `<div style="padding:20px 0;text-align:center;color:#94a3b8;font-size:13px">Sin observaciones registradas para esta puerta.</div>`;
-    }
+    // ── Historial de observaciones ──────────────────────────────
+    const doorKey  = [ficha.calle, ficha.numero, d.escalera || '', d.piso, d.puerta]
+        .map(v => String(v || '').trim().toLowerCase()).join('||');
+    const histObs  = (obsPuertasActual[doorKey] || []);
 
-    // Sección editable: Nombre Vecino y Teléfono
+    html += `<div style="margin-top:18px;border-top:1px solid #e2e8f0;padding-top:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div class="card-label" style="font-size:10px;margin-bottom:0">Historial de observaciones</div>
+            <button class="puerta-obs-add-btn" onclick="abrirModalObsPuerta()">+ Añadir</button>
+        </div>`;
+
+    if (!histObs.length) {
+        html += `<div class="portales-empty-sm">Sin observaciones registradas aún.</div>`;
+    } else {
+        html += histObs.map(o => `
+            <div class="puerta-obs-item">
+                <div class="puerta-obs-meta">${esc(o.autor)}${o.autor && o.fecha ? ' · ' : ''}${esc(o.fecha)}</div>
+                <div class="puerta-obs-texto">${esc(o.obs)}</div>
+            </div>`).join('');
+    }
+    html += `</div>`;
+
+    // ── Editar datos del vecino ─────────────────────────────────
     html += `<div style="margin-top:18px;border-top:1px solid #e2e8f0;padding-top:14px">
         <div class="card-label" style="font-size:10px;margin-bottom:10px">Editar datos del vecino</div>
         <div style="margin-bottom:10px">
@@ -2924,7 +2964,7 @@ function abrirFichaPuerta(idx) {
         </div>
     </div>`;
 
-    // Guardamos referencia para la función de guardar
+    // Guardamos referencia para las funciones de guardar
     window._puertaActualData = {
         calle:    ficha.calle,
         numero:   ficha.numero,
@@ -2932,12 +2972,70 @@ function abrirFichaPuerta(idx) {
         piso:     d.piso,
         puerta:   d.puerta,
         nombre:   d.nombre   || '',
-        telefono: d.telefono || ''
+        telefono: d.telefono || '',
+        doorKey
     };
 
     document.getElementById('puertaModalCuerpo').innerHTML = html;
     document.getElementById('btnGuardarPuerta').style.display = '';
     document.getElementById('portalesPuertaModal').style.display = 'flex';
+}
+
+function abrirModalObsPuerta() {
+    const p = window._puertaActualData || {};
+    const titulo = [p.piso, 'Puerta ' + p.puerta].filter(Boolean).join(' — ');
+    document.getElementById('obsPuertaModalTitulo').textContent = titulo || 'Nueva observación';
+    document.getElementById('obsPuertaTexto').value = '';
+    document.getElementById('portalesObsPuertaModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('obsPuertaTexto')?.focus(), 80);
+}
+
+async function guardarObsPuerta() {
+    const p    = window._puertaActualData || {};
+    const obs  = (document.getElementById('obsPuertaTexto').value || '').trim();
+    if (!obs) { showToast('Escribe una observación'); return; }
+
+    const btn  = document.getElementById('btnGuardarObsPuerta');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+
+    const asesor = localStorage.getItem('taratura_asesor') || '';
+    try {
+        const res    = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body:   JSON.stringify({
+                action:   'añadir_observacion_puerta',
+                calle:    p.calle,
+                numero:   p.numero,
+                escalera: p.escalera || '',
+                piso:     p.piso,
+                puerta:   p.puerta,
+                autor:    asesor,
+                obs
+            })
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || 'Error');
+
+        // Actualizar cache local para que el modal se refresque sin recargar el portal
+        const clave = p.doorKey;
+        if (!obsPuertasActual[clave]) obsPuertasActual[clave] = [];
+        obsPuertasActual[clave].unshift({ fecha: result.fecha || '', autor: asesor, obs });
+
+        cerrarModal('portalesObsPuertaModal');
+        showToast('Observación guardada');
+
+        // Refrescar el contenido del modal de puerta con el nuevo historial
+        const idx = puertasOrdenadas.findIndex(d =>
+            String(d.piso || '').trim() === String(p.piso || '').trim() &&
+            String(d.puerta || '').trim() === String(p.puerta || '').trim()
+        );
+        if (idx >= 0) abrirFichaPuerta(idx);
+
+    } catch (err) {
+        showToast('Error al guardar: ' + err.message);
+    } finally {
+        btn.disabled = false; btn.textContent = 'Guardar →';
+    }
 }
 
 async function eliminarPortal() {
@@ -3058,6 +3156,39 @@ async function guardarVisita() {
         await abrirDetallePortal(portalActual);
     } catch (err) {
         showToast('Error: ' + err.message);
+    } finally {
+        btn.disabled = false; btn.textContent = 'Guardar →';
+    }
+}
+
+// ── Modal: añadir observación ────────────────
+
+function abrirModalNota() {
+    document.getElementById('notaTexto').value = '';
+    document.getElementById('portalesNotaModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('notaTexto')?.focus(), 80);
+}
+
+async function guardarNota() {
+    const texto = (document.getElementById('notaTexto').value || '').trim();
+    if (!texto) { showToast('Escribe una observación'); return; }
+
+    const btn = document.getElementById('btnGuardarNota');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+
+    const asesor = localStorage.getItem('taratura_asesor') || '';
+    try {
+        const res    = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body:   JSON.stringify({ action: 'añadir_nota_portal', id_portal: portalActual, autor: asesor, nota: texto })
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || 'Error');
+        cerrarModal('portalesNotaModal');
+        showToast('Observación guardada');
+        abrirDetallePortal(portalActual);
+    } catch (err) {
+        showToast('Error al guardar: ' + err.message);
     } finally {
         btn.disabled = false; btn.textContent = 'Guardar →';
     }
