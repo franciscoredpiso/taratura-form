@@ -1516,10 +1516,11 @@ let agrupadoActivo  = false;
 function isDesktop() { return window.innerWidth >= 800; }
 
 const PIP_STEPS = [
-  { label: 'Inglobably',            note: '',               etapas: ['Detectada', 'Investigando'] },
-  { label: 'ABC',                   note: '',               etapas: ['Llamando (ABC)'] },
-  { label: 'Solicitar tel. Esther', note: 'si ABC falla',   etapas: ['Solicitar teléfonos Esther'] },
-  { label: 'Nota Simple',           note: 'último recurso', etapas: ['Esperando Nota Simple', 'Nota Simple recibida'] }
+  { label: 'Detectada',    note: '',               etapas: ['Detectada'],                       setEtapa: 'Detectada' },
+  { label: 'Inglobably',   note: 'investigar',     etapas: ['Investigando'],                    setEtapa: 'Investigando' },
+  { label: 'ABC',          note: '',               etapas: ['Llamando (ABC)'],                  setEtapa: 'Llamando (ABC)' },
+  { label: 'Esther',       note: 'si ABC falla',   etapas: ['Solicitar teléfonos Esther'],      setEtapa: 'Solicitar teléfonos Esther' },
+  { label: 'Nota Simple',  note: 'último recurso', etapas: ['Esperando Nota Simple', 'Nota Simple recibida'], setEtapa: 'Esperando Nota Simple' }
 ];
 const ETAPA_ORDER = ['Detectada','Investigando','Llamando (ABC)','Solicitar teléfonos Esther',
                      'Esperando Nota Simple','Nota Simple recibida','Contactado','Cerrada'];
@@ -1717,12 +1718,20 @@ async function abrirFichaNoticia(idx) {
   }
 }
 
+function copiarFichaId() {
+  if (!fichaData) return;
+  const id = fichaData.ficha.ficha_id;
+  navigator.clipboard.writeText(id).then(() => showToast('✓ ID copiado: ' + id)).catch(() => showToast('ID: ' + id));
+}
+
 function renderFicha() {
   if (!fichaData) return;
   const { ficha, candidatos, seguimiento } = fichaData;
   document.getElementById('fichaAddr').textContent = buildAddr(ficha);
   document.getElementById('fichaDate').textContent  = formatFecha(ficha.fecha_deteccion);
   document.getElementById('fichaMeta').innerHTML    = `<span>${ficha.zona || ''}</span><span>${ficha.asesor || ''}</span>`;
+  const idRef = document.getElementById('fichaIdRef');
+  if (idRef) idRef.textContent = 'ID: ' + ficha.ficha_id + ' — toca para copiar';
   document.getElementById('fichaEtapaBadge').textContent = ficha.etapa_actual || 'Detectada';
   document.getElementById('fichaEtapaBadge').className   = 'nt-badge ' + badgeClass(ficha.etapa_actual);
   document.getElementById('selectEtapa').value           = ficha.etapa_actual || 'Detectada';
@@ -1742,12 +1751,25 @@ function renderPipeline(etapa) {
     const state = pipState(step, etapa || 'Detectada');
     const num   = state === 'done' ? '✓' : (i + 1);
     return `
-      <div class="pip-step ${state}">
+      <div class="pip-step ${state}" style="cursor:pointer" onclick="setEtapaPipeline('${step.setEtapa}')" title="Cambiar a ${step.label}">
         <div class="pip-dot">${num}</div>
         <div class="pip-name">${step.label}</div>
         ${step.note ? `<div class="pip-note">${step.note}</div>` : ''}
       </div>`;
   }).join('');
+}
+
+async function setEtapaPipeline(etapa) {
+  if (!fichaData) return;
+  if (etapa === fichaData.ficha.etapa_actual) return;
+  if (!confirm(`¿Cambiar etapa a "${etapa}"?`)) return;
+  try {
+    await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: fichaData.ficha.ficha_id, etapa_actual: etapa });
+    await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
+                  autor: asesorActual, nota: `Etapa → ${etapa}` });
+    showToast('✓ ' + etapa);
+    await recargarFicha();
+  } catch(err) { showToast('Error: ' + err.message); }
 }
 
 function renderPanelRapido(ficha, candidatos, seguimiento) {
@@ -1836,16 +1858,30 @@ function renderPropietarios(props) {
   box.innerHTML = props.map(p => `
     <div class="cand-item">
       <div class="cand-top">
-        <div>
-          <div class="cand-nombre">${p.nombre || '—'}</div>
+        <div style="flex:1">
+          <div class="cand-nombre">${p.nombre || '—'}${p.parentesco ? ` <span style="font-size:11px;font-weight:400;color:#888">(${p.parentesco})</span>` : ''}</div>
           <div class="${p.nif ? 'prop-nif' : 'prop-nif missing'}">
             ${p.nif ? `<span class="nif-badge">NIF</span> ${p.nif}` : 'Sin NIF — necesario para Nota Simple y Esther'}
           </div>
+          ${p.fecha_nacimiento ? `<div style="font-size:11px;color:#888;margin-top:2px">Nac.: ${formatFecha(p.fecha_nacimiento)}</div>` : ''}
           ${p.telefono ? `<div class="cand-tel" style="margin-top:3px">${p.telefono}</div>` : ''}
         </div>
-        ${p.estado === 'Confirmado propietario' ? '<span class="nt-fuente f-inglobably">Confirmado</span>' : '<span class="nt-fuente f-inglobably">Inglobably</span>'}
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          ${p.estado === 'Confirmado propietario' ? '<span class="nt-fuente f-inglobably">Confirmado</span>' : '<span class="nt-fuente f-inglobably">Inglobably</span>'}
+          <button class="btn-sm" style="color:#b91c1c;border-color:#fca5a5" onclick="eliminarPropietario(${p.row_num})">Eliminar</button>
+        </div>
       </div>
     </div>`).join('');
+}
+
+async function eliminarPropietario(rowNum) {
+  if (!fichaData) return;
+  if (!confirm('¿Eliminar este propietario?')) return;
+  try {
+    await ntApi({ action: 'eliminar_candidato', ficha_id: fichaData.ficha.ficha_id, row_num: rowNum });
+    showToast('✓ Propietario eliminado');
+    await recargarFicha();
+  } catch(err) { showToast('Error: ' + err.message); }
 }
 
 function renderCandidatos(candidatos) {
@@ -2087,9 +2123,11 @@ async function guardarNotaInglobably() {
 }
 
 async function guardarPropietario() {
-  const nombre = document.getElementById('propNombre').value.trim();
-  const nif    = document.getElementById('propNIF').value.trim().toUpperCase();
-  const tel    = document.getElementById('propTel').value.trim();
+  const nombre          = document.getElementById('propNombre').value.trim();
+  const nif             = document.getElementById('propNIF').value.trim().toUpperCase();
+  const parentesco      = document.getElementById('propParentesco').value;
+  const fecha_nacimiento = document.getElementById('propFechaNac').value;
+  const tel             = document.getElementById('propTel').value.trim();
   if (!nombre) { showToast('El nombre es obligatorio'); return; }
   const btn = document.getElementById('btnGuardarProp');
   btn.disabled = true; btn.textContent = 'Guardando…';
@@ -2097,13 +2135,14 @@ async function guardarPropietario() {
     await ntApi({
       action:   'agregar_candidato',
       ficha_id: fichaData.ficha.ficha_id,
-      nombre, nif, telefono: tel,
+      nombre, nif, parentesco, fecha_nacimiento, telefono: tel,
       fuente:   'Inglobably',
       estado:   'Pendiente',
       asesor:   asesorActual
     });
     ntCloseModal('addProp');
-    ['propNombre','propNIF','propTel'].forEach(id => document.getElementById(id).value = '');
+    ['propNombre','propNIF','propTel','propFechaNac'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('propParentesco').value = '';
     showToast('✓ Propietario agregado');
     await recargarFicha();
   } catch(err) { showToast('Error: ' + err.message); }
