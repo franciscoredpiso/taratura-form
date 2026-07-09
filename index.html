@@ -686,7 +686,8 @@
       <div class="sec-hdr" onclick="ntToggleSec(this)">Candidatos a llamar <span>▾</span></div>
       <div class="sec-body">
         <div class="cand-actions">
-          <button class="btn-sm" onclick="ntOpenModal('candidato')">+ Agregar candidato</button>
+          <button class="btn-sm" onclick="ntOpenModal('candidato')">+ Manual</button>
+          <button class="btn-sm" onclick="ntOpenModal('importarABC')" style="background:#dbeafe;border-color:#93c5fd;color:#1d4ed8">↓ Importar ABC</button>
         </div>
         <div id="candidatosList"></div>
       </div>
@@ -970,6 +971,22 @@
     <div class="nt-modal-actions">
       <button class="nt-btn-cancel" onclick="ntCloseModal('tarea')">Cancelar</button>
       <button class="nt-btn-primary" id="btnGuardarTarea" onclick="guardarTarea()">Guardar tarea</button>
+    </div>
+  </div>
+</div>
+
+<div class="nt-modal-overlay" id="nt-modal-importarABC">
+  <div class="nt-modal">
+    <div class="nt-modal-title">Importar candidatos ABC</div>
+    <div class="nt-modal-info">Pegá la URL del Google Sheet con los candidatos. Las columnas deben estar en este orden (con cabecera en fila 1):<br><strong>Apellido buscado · Nombre · Dirección · Ciudad · Teléfono · Fecha · Suena · Estado · Proxima accion · Fecha Proxima Accion</strong><br><br>El sheet debe estar compartido con el mismo Google account que usa el script, o ser público.</div>
+    <div class="nt-form-group">
+      <label>URL del Google Sheet</label>
+      <input type="url" id="importarAbcUrl" placeholder="https://docs.google.com/spreadsheets/d/…">
+    </div>
+    <div id="importarAbcResult" style="display:none;font-size:13px;padding:10px;border-radius:8px;margin-top:4px"></div>
+    <div class="nt-modal-actions">
+      <button class="nt-btn-cancel" onclick="ntCloseModal('importarABC')">Cancelar</button>
+      <button class="nt-btn-primary" id="btnImportarABC" onclick="ejecutarImportABC()">Importar</button>
     </div>
   </div>
 </div>
