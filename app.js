@@ -1884,17 +1884,53 @@ async function eliminarPropietario(rowNum) {
   } catch(err) { showToast('Error: ' + err.message); }
 }
 
+let candidatosActuales = [];
+let filtroCandidatos   = 'todos';
+
 function renderCandidatos(candidatos) {
-  const box = document.getElementById('candidatosList');
-  if (!candidatos || !candidatos.length) {
-    box.innerHTML = '<div style="color:#888;font-size:13px;font-style:italic">Sin candidatos cargados.</div>';
+  candidatosActuales = candidatos || [];
+  const box = document.getElementById('candidatosResumen');
+  if (!candidatosActuales.length) {
+    box.innerHTML = '<span style="color:#888;font-style:italic">Sin candidatos cargados.</span>';
+    return;
+  }
+  const total      = candidatosActuales.length;
+  const pendientes = candidatosActuales.filter(c => c.estado !== 'Descartado' && c.estado !== 'No existe').length;
+  const descart    = candidatosActuales.filter(c => c.estado === 'Descartado' || c.estado === 'No existe').length;
+  box.innerHTML = `<strong>${total}</strong> candidatos · <span style="color:#15803d">${pendientes} activos</span>${descart ? ` · <span style="color:#b91c1c">${descart} descartados</span>` : ''}`;
+}
+
+function abrirPanelCandidatos() {
+  filtroCandidatos = 'todos';
+  document.querySelectorAll('.cp-filtro').forEach(b => b.classList.remove('active'));
+  document.getElementById('cpFiltro-todos').classList.add('active');
+  renderCandidatosPanel();
+  ntOpenModal('candidatosPanel');
+}
+
+function filtrarCandidatosPanel(filtro) {
+  filtroCandidatos = filtro;
+  document.querySelectorAll('.cp-filtro').forEach(b => b.classList.remove('active'));
+  document.getElementById('cpFiltro-' + filtro).classList.add('active');
+  renderCandidatosPanel();
+}
+
+function renderCandidatosPanel() {
+  const box = document.getElementById('candidatosPanelList');
+  const esDescartado = c => c.estado === 'Descartado' || c.estado === 'No existe';
+  let lista = candidatosActuales;
+  if (filtroCandidatos === 'pendientes')  lista = lista.filter(c => !esDescartado(c));
+  if (filtroCandidatos === 'descartados') lista = lista.filter(esDescartado);
+
+  if (!lista.length) {
+    box.innerHTML = '<div style="padding:20px;text-align:center;color:#888;font-size:13px;font-style:italic">Sin candidatos para este filtro.</div>';
     return;
   }
   const fuenteClass = { ABC: 'f-abc', Esther: 'f-esther', 'Nota Simple': 'f-nota', Manual: 'f-manual' };
   const estadoIcon  = { 'Pendiente': '🕐', 'Suena / sin respuesta': '📵', 'Suena / no relacionado': '🔇',
                         'No existe': '❌', 'Descartado': '❌', 'Confirmado propietario': '✅' };
-  box.innerHTML = candidatos.map(c => `
-    <div class="cand-item">
+  box.innerHTML = lista.map(c => `
+    <div class="cand-item${esDescartado(c) ? ' cand-descartado' : ''}">
       <div class="cand-top">
         <div>
           <div class="cand-nombre">${c.nombre || '—'}</div>
@@ -1904,10 +1940,15 @@ function renderCandidatos(candidatos) {
       </div>
       <div class="cand-bottom">
         <span class="cand-estado">${estadoIcon[c.estado] || '🕐'} ${c.estado || 'Pendiente'}</span>
-        <button class="btn-sm" onclick="abrirLlamada(${c.row_num})">Registrar llamada</button>
+        <button class="btn-sm" onclick="abrirLlamadaDesdePanel(${c.row_num})">Registrar llamada</button>
       </div>
       ${c.proxima_accion ? `<div class="cand-prox" style="margin-top:4px">→ ${c.proxima_accion}${c.fecha_proxima_accion ? ' · ' + formatFecha(c.fecha_proxima_accion) : ''}</div>` : ''}
     </div>`).join('');
+}
+
+function abrirLlamadaDesdePanel(rowNum) {
+  ntCloseModal('candidatosPanel');
+  abrirLlamada(rowNum);
 }
 
 function renderProximaAccion(ficha) {
@@ -2047,7 +2088,14 @@ function abrirLlamada(rowNum) {
   candidatoActivo = fichaData.candidatos.find(c => c.row_num === rowNum);
   document.getElementById('llamadaCandInfo').innerHTML =
     `<strong>${candidatoActivo.nombre || '—'}</strong><br>${candidatoActivo.telefono || '—'} · <span style="font-size:11px;color:#888">${candidatoActivo.fuente || ''}</span>`;
-  document.getElementById('llamadaEstado').value = candidatoActivo.estado === 'Pendiente' ? 'Suena / sin respuesta' : candidatoActivo.estado;
+  document.getElementById('llamadaEstado').value   = candidatoActivo.estado === 'Pendiente' ? 'Suena / sin respuesta' : (candidatoActivo.estado || 'Suena / sin respuesta');
+  document.getElementById('llamadaSuena').value    = candidatoActivo.suena && candidatoActivo.suena !== 'Sin probar' ? candidatoActivo.suena : 'Sí';
+  document.getElementById('llamadaNotas').value    = '';
+  document.getElementById('llamadaProxAccion').value = candidatoActivo.proxima_accion || '';
+  const fp = candidatoActivo.fecha_proxima_accion;
+  document.getElementById('llamadaFechaProx').value = fp
+    ? (String(fp).includes('T') ? String(fp).split('T')[0] : String(fp).slice(0,10))
+    : new Date().toISOString().split('T')[0];
   ntOpenModal('llamada');
 }
 
