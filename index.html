@@ -5,6 +5,336 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Taratura</title>
     <link rel="stylesheet" href="style.css">
+<style>
+/* ═══════════════════════════════════════════════
+   NOTICIAS V2 — estilos propios
+   Prefijo nt- en clases que solapan con el resto
+   ═══════════════════════════════════════════════ */
+
+/* Variables */
+#noticiasSection {
+  --nt-bg:#f5f5f7; --nt-card:#fff; --nt-border:#e0e0e0;
+  --nt-text:#1a1a1a; --nt-muted:#888; --nt-muted2:#b0b0b0;
+  --nt-primary:#1d4ed8; --nt-primary-light:#dbeafe;
+  --nt-green:#15803d; --nt-green-light:#dcfce7;
+  --nt-red:#b91c1c; --nt-red-light:#fee2e2;
+  --nt-gray:#374151; --nt-gray-light:#f3f4f6;
+  --nt-yellow-light:#fef3c7; --nt-orange-light:#ffedd5;
+  background: var(--nt-bg); min-height: calc(100vh - 44px);
+}
+
+/* ── Screens (nav interna mobile) ── */
+#ntLayout .screen { display: none; }
+#ntLayout .screen.active { display: block; }
+
+/* ── Tabs internos ── */
+.nt-nav-tabs { background: white; border-bottom: 1px solid var(--nt-border); display: flex; padding: 0 16px; }
+.nt-nav-tab  { padding: 12px 16px; font-size: 13px; font-weight: 500; color: var(--nt-muted);
+               cursor: pointer; border-bottom: 2px solid transparent;
+               background: none; border-left: none; border-right: none; border-top: none; }
+.nt-nav-tab.active { color: var(--nt-primary); border-bottom-color: var(--nt-primary); }
+
+/* ── Lista ── */
+.nt-list-wrap { padding: 14px 16px 80px; }
+.list-hdr   { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.list-hdr h2 { font-size: 15px; font-weight: 700; margin: 0; }
+.count-badge { background: var(--nt-primary-light); color: var(--nt-primary); font-size: 12px;
+               font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+.nt-empty-state { text-align: center; padding: 48px 24px; color: var(--nt-muted); font-size: 14px; }
+.nt-empty-state .empty-icon { font-size: 36px; margin-bottom: 10px; }
+
+/* Tarjeta noticia */
+.noticia-card { background: white; border-radius: 10px; border: 1px solid var(--nt-border);
+                padding: 14px 16px; margin-bottom: 10px; cursor: pointer;
+                animation: fadeUp .22s ease both; transition: box-shadow .15s, transform .15s, border-color .15s; }
+.noticia-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.1); transform: translateY(-1px); }
+.noticia-card.card-sel { border-color: var(--nt-primary); background: #f5f8ff; transform: translateY(-1px); box-shadow: 0 0 0 2px rgba(29,78,216,.15); }
+.noticia-card:nth-child(1) { animation-delay: .03s; }
+.noticia-card:nth-child(2) { animation-delay: .07s; }
+.noticia-card:nth-child(3) { animation-delay: .11s; }
+.noticia-card:nth-child(4) { animation-delay: .15s; }
+.noticia-card:nth-child(5) { animation-delay: .19s; }
+.noticia-card:nth-child(n+6){ animation-delay: .22s; }
+.card-top    { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.card-addr   { font-size: 14px; font-weight: 700; }
+.card-meta   { font-size: 12px; color: var(--nt-muted); margin-top: 2px; }
+.card-bottom { display: flex; justify-content: space-between; align-items: center;
+               margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--nt-gray-light); }
+.card-last   { font-size: 12px; color: var(--nt-muted); }
+.card-last strong { color: var(--nt-gray); }
+.card-prox   { font-size: 12px; color: var(--nt-primary); font-weight: 600; }
+
+/* Badges etapa */
+.nt-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 8px;
+            border-radius: 5px; white-space: nowrap; transition: background .2s, color .2s; }
+.b-detectada  { background: #e0e7ff; color: #3730a3; }
+.b-invest     { background: #fef3c7; color: #78350f; }
+.b-abc        { background: #dbeafe; color: #1e40af; }
+.b-esther     { background: #fce7f3; color: #9d174d; }
+.b-notasimple { background: #ffedd5; color: #9a3412; }
+.b-notarec    { background: #d1fae5; color: #065f46; }
+.b-contactado { background: #dcfce7; color: #14532d; }
+.b-cerrada    { background: var(--nt-gray-light); color: var(--nt-gray); }
+
+/* ── Ficha ── */
+.nt-ficha-header { background: white; padding: 14px 16px; border-bottom: 1px solid var(--nt-border); }
+.nt-back-btn  { font-size: 13px; color: var(--nt-primary); cursor: pointer; margin-bottom: 10px;
+                display: inline-flex; align-items: center; gap: 4px; background: none; border: none; }
+.ficha-title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 4px; }
+.ficha-addr  { font-size: 17px; font-weight: 800; line-height: 1.3; }
+.ficha-date  { font-size: 13px; color: var(--nt-muted); font-weight: 500; flex-shrink: 0; padding-top: 2px; }
+.nt-ficha-meta { font-size: 12px; color: var(--nt-muted); margin-bottom: 12px; }
+.nt-ficha-meta span { margin-right: 8px; }
+.etapa-row  { display: flex; align-items: center; justify-content: space-between; }
+.btn-avanzar { background: var(--nt-primary); color: white; border: none; padding: 8px 14px;
+               border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.btn-avanzar:active { transform: scale(.97); }
+
+/* Panel rápido */
+.panel-rapido { background: white; border-bottom: 1px solid var(--nt-border); padding: 14px 16px; }
+.pr-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px;
+            color: var(--nt-muted); margin-bottom: 10px; }
+.pr-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.pr-edit-btn { font-size: 11px; color: var(--nt-muted); cursor: pointer; background: none; border: none;
+               padding: 2px 6px; border-radius: 5px; transition: color .15s, background .15s; }
+.pr-edit-btn:hover { color: var(--nt-primary); background: var(--nt-primary-light); }
+.pr-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pr-item  { background: var(--nt-gray-light); border-radius: 8px; padding: 10px 12px; transition: background .15s, box-shadow .15s; }
+.pr-item.full { grid-column: 1 / -1; }
+.pr-item-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+                 color: var(--nt-muted); margin-bottom: 4px; }
+.pr-item-val { font-size: 13px; font-weight: 600; }
+.pr-item-sub { font-size: 11px; color: var(--nt-muted); margin-top: 2px; }
+.pr-item-btn { cursor: pointer; user-select: none; }
+.pr-item-btn:hover { background: #e8ecf2; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.pr-item-btn:active { transform: scale(.98); }
+.pr-item-placeholder { color: var(--nt-muted); font-size: 12px; font-style: italic; margin-top: 2px; }
+
+.estado-piso { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px;
+               border-radius: 999px; font-size: 12px; font-weight: 700; }
+.ep-vacio     { background: var(--nt-red-light); color: #991b1b; }
+.ep-alquilado { background: var(--nt-yellow-light); color: #92400e; }
+.ep-prop      { background: var(--nt-green-light); color: #14532d; }
+.ep-sin-datos { background: var(--nt-gray-light); color: var(--nt-muted); }
+
+.ultimo-intento { background: #fff7ed; border-radius: 8px; padding: 10px 12px; grid-column: 1/-1; }
+.ui-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: #92400e; margin-bottom: 5px; }
+.ui-row   { display: flex; align-items: center; justify-content: space-between; }
+.ui-desc  { font-size: 13px; font-weight: 600; }
+.ui-hace  { font-size: 11px; color: #92400e; font-weight: 700; background: var(--nt-orange-light);
+            padding: 2px 8px; border-radius: 999px; }
+.ui-sub   { font-size: 12px; color: var(--nt-muted); margin-top: 3px; }
+.intentos-row  { display: flex; align-items: center; gap: 5px; margin-top: 6px; }
+.int-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.int-dot.pend    { background: #d1d5db; border: 1px solid #9ca3af; }
+.int-dot.sinresp { background: #fbbf24; }
+.int-dot.descart { background: #ef4444; }
+.int-dot.confirm { background: #22c55e; }
+.int-label { font-size: 11px; color: var(--nt-muted); }
+
+.inquilino-alert { background: #fdf4ff; border: 1px solid #e879f9; border-radius: 8px;
+                   padding: 10px 12px; grid-column: 1/-1; display: flex; align-items: center; gap: 10px; }
+.ia-icon  { font-size: 20px; }
+.ia-title { font-size: 13px; font-weight: 700; color: #701a75; }
+.ia-sub   { font-size: 12px; color: #9d174d; margin-top: 2px; }
+
+/* Pipeline */
+.pipeline-wrap { background: white; padding: 12px 16px 14px; border-bottom: 1px solid var(--nt-border); }
+.pip-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px;
+             color: var(--nt-muted); margin-bottom: 10px; }
+.pipeline  { display: flex; align-items: flex-start; }
+.pip-step  { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; position: relative; }
+.pip-step:not(:last-child)::after {
+  content: ''; position: absolute; top: 13px; left: calc(50% + 14px);
+  width: calc(100% - 28px); height: 2px; background: var(--nt-border); }
+.pip-step.done:not(:last-child)::after { background: var(--nt-green); transition: background .4s ease; }
+.pip-dot   { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center;
+             justify-content: center; font-size: 12px; font-weight: 700;
+             border: 2px solid var(--nt-border); background: white; color: var(--nt-muted); z-index: 1;
+             transition: background .3s, border-color .3s, box-shadow .3s; }
+.pip-step.done   .pip-dot { background: var(--nt-green); border-color: var(--nt-green); color: white; }
+.pip-step.active .pip-dot { background: var(--nt-primary); border-color: var(--nt-primary); color: white;
+                             animation: pulseRing 2s ease infinite; }
+.pip-name  { font-size: 9px; text-align: center; font-weight: 500; color: var(--nt-muted); line-height: 1.3; }
+.pip-step.done   .pip-name { color: var(--nt-green); }
+.pip-step.active .pip-name { color: var(--nt-primary); font-weight: 700; }
+.pip-note  { font-size: 8px; color: var(--nt-muted2); text-align: center; font-style: italic; }
+.pip-reinicio { font-size: 11px; color: var(--nt-muted); margin-top: 10px; padding-top: 8px;
+                border-top: 1px solid var(--nt-gray-light); }
+
+/* Secciones */
+.nt-ficha-body { padding-bottom: 80px; }
+.nt-section    { background: white; margin-top: 8px; border-top: 1px solid var(--nt-border); border-bottom: 1px solid var(--nt-border); }
+.sec-hdr    { padding: 12px 16px; font-size: 10px; font-weight: 800; text-transform: uppercase;
+              letter-spacing: .6px; color: var(--nt-muted); display: flex; justify-content: space-between;
+              align-items: center; cursor: pointer; }
+.sec-body   { padding: 0 16px 14px; }
+.info-label { font-size: 10px; color: var(--nt-muted); font-weight: 700; text-transform: uppercase;
+              letter-spacing: .4px; display: block; margin-bottom: 3px; }
+.info-val   { font-size: 14px; font-weight: 500; }
+.info-val.empty { color: var(--nt-muted); font-style: italic; font-weight: 400; }
+.info-row   { display: flex; flex-direction: column; gap: 10px; }
+.nota-libre { background: var(--nt-gray-light); border-radius: 8px; padding: 10px 12px;
+              font-size: 13px; line-height: 1.5; color: var(--nt-gray); }
+.btn-link   { display: inline-flex; align-items: center; gap: 4px; font-size: 13px;
+              color: var(--nt-primary); font-weight: 600; cursor: pointer; margin-top: 8px;
+              background: none; border: none; padding: 0; }
+
+/* Candidatos */
+.cand-actions { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.btn-sm { font-size: 12px; padding: 5px 11px; border-radius: 6px; border: 1px solid var(--nt-border);
+          background: white; cursor: pointer; font-weight: 600; color: var(--nt-gray); }
+.btn-sm:hover { background: var(--nt-gray-light); }
+.btn-sm:active { transform: scale(.95); }
+.cand-item   { padding: 10px 0; border-bottom: 1px solid var(--nt-gray-light); }
+.cand-item:last-child { border-bottom: none; }
+.cand-top    { display: flex; justify-content: space-between; align-items: flex-start; }
+.cand-nombre { font-size: 14px; font-weight: 700; }
+.cand-tel    { font-size: 13px; color: var(--nt-muted); margin-top: 2px; }
+.nt-fuente { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+             text-transform: uppercase; letter-spacing: .4px; }
+.f-abc        { background: #dbeafe; color: #1e40af; }
+.f-esther     { background: #fce7f3; color: #9d174d; }
+.f-nota       { background: #ffedd5; color: #9a3412; }
+.f-manual     { background: var(--nt-gray-light); color: var(--nt-gray); }
+.f-inglobably { background: #e0e7ff; color: #3730a3; }
+.cand-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.cand-estado { font-size: 12px; color: var(--nt-muted); }
+.cand-prox   { font-size: 11px; color: var(--nt-primary); }
+.prop-nif { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--nt-muted); margin-top: 3px; }
+.nif-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+             background: #e0e7ff; color: #3730a3; padding: 1px 6px; border-radius: 4px; }
+.prop-nif.missing { color: #b91c1c; font-style: italic; }
+
+/* Acciones */
+.acc-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-acc { flex: 1; min-width: 130px; padding: 10px 14px; border-radius: 8px;
+           border: 1.5px solid var(--nt-border); background: white; font-size: 13px;
+           font-weight: 700; cursor: pointer; text-align: center; transition: all .15s; }
+.btn-acc:hover { border-color: var(--nt-primary); color: var(--nt-primary); }
+.btn-acc:active { transform: scale(.97); }
+.btn-danger { border-color: #fca5a5; color: var(--nt-red); }
+.btn-danger:hover { border-color: var(--nt-red); }
+
+/* Próxima acción */
+.prox-box { background: var(--nt-primary-light); border-radius: 8px; padding: 12px 14px; }
+.prox-box-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.prox-text  { font-size: 14px; font-weight: 700; color: var(--nt-primary); }
+.prox-fecha { font-size: 12px; color: var(--nt-primary); margin-top: 2px; }
+.prox-edit-btn { font-size: 11px; color: var(--nt-primary); font-weight: 700; cursor: pointer;
+                 background: none; border: 1px solid var(--nt-primary); border-radius: 5px;
+                 padding: 3px 8px; flex-shrink: 0; white-space: nowrap; }
+.prox-add-btn { color: var(--nt-primary); font-size: 13px; font-weight: 600; cursor: pointer;
+                background: none; border: 1px dashed var(--nt-primary); border-radius: 7px;
+                padding: 8px 14px; width: 100%; text-align: center; }
+.prox-add-btn:hover { background: var(--nt-primary-light); }
+
+/* Historial */
+.hist-item  { padding: 10px 0; border-bottom: 1px solid var(--nt-gray-light); display: flex; gap: 10px; }
+.hist-item:last-child { border-bottom: none; }
+.hist-fecha { font-size: 11px; color: var(--nt-muted); min-width: 50px; padding-top: 2px; flex-shrink: 0; }
+.hist-accion { font-size: 13px; font-weight: 600; }
+.hist-res    { font-size: 12px; color: var(--nt-muted); margin-top: 2px; }
+
+/* Reportes */
+.rep-section { margin: 10px 16px; background: white; border-radius: 10px;
+               border: 1px solid var(--nt-border); overflow: hidden; }
+.rep-title   { padding: 12px 16px; font-size: 13px; font-weight: 700;
+               border-bottom: 1px solid var(--nt-border); display: flex; justify-content: space-between; align-items: center; }
+.rep-row     { padding: 11px 16px; border-bottom: 1px solid var(--nt-gray-light); font-size: 13px; }
+.rep-row:last-child { border-bottom: none; }
+.rep-addr    { font-weight: 700; }
+.rep-meta    { color: var(--nt-muted); font-size: 12px; margin-top: 2px; }
+
+/* ── Modal noticias ── */
+.nt-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+                    z-index: 100; align-items: flex-end; justify-content: center; }
+.nt-modal-overlay.open { display: flex; }
+.nt-modal { background: white; border-radius: 16px 16px 0 0; padding: 20px;
+            width: 100%; max-width: 480px; animation: ntSlideUp .2s ease;
+            max-height: 90vh; overflow-y: auto; }
+@keyframes ntSlideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.nt-modal-title { font-size: 15px; font-weight: 800; margin-bottom: 16px; }
+.nt-modal-info  { background: var(--nt-gray-light); border-radius: 8px; padding: 10px 12px;
+                  font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
+.nt-modal-warn  { background: var(--nt-yellow-light); border-radius: 8px; padding: 10px 12px;
+                  font-size: 13px; color: #78350f; margin-bottom: 12px; line-height: 1.5; }
+.nt-form-group  { margin-bottom: 14px; }
+.nt-form-group label { font-size: 11px; color: var(--nt-muted); font-weight: 700; text-transform: uppercase;
+                        letter-spacing: .4px; display: block; margin-bottom: 5px; }
+.nt-form-group select, .nt-form-group input, .nt-form-group textarea {
+  width: 100%; padding: 10px 12px; border: 1.5px solid var(--nt-border); border-radius: 8px;
+  font-size: 14px; font-family: inherit; background: white; color: var(--nt-text); box-sizing: border-box; }
+.nt-form-group textarea { height: 70px; resize: none; }
+.nt-modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+.nt-btn-primary { flex: 1; background: var(--nt-primary); color: white; border: none; padding: 12px;
+                  border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.nt-btn-primary:disabled { opacity: .6; cursor: default; }
+.nt-btn-primary:active { transform: scale(.97); }
+.nt-btn-cancel  { padding: 12px 16px; border-radius: 8px; border: 1px solid var(--nt-border);
+                  background: white; font-size: 14px; cursor: pointer; font-weight: 600; }
+.quick-opt { width: 100%; padding: 12px 16px; border-radius: 10px; border: 1.5px solid var(--nt-border);
+             background: white; font-size: 14px; font-weight: 600; cursor: pointer; text-align: left;
+             transition: border-color .15s, background .15s; }
+.quick-opt:hover { border-color: var(--nt-primary); background: var(--nt-primary-light); color: var(--nt-primary); }
+.quick-opt:active { transform: scale(.98); }
+
+/* Sección cerrar */
+.section-cerrar { background: white; margin-top: 8px; border-top: 1px solid var(--nt-border);
+                  border-bottom: 1px solid var(--nt-border); padding: 14px 16px; }
+
+/* Ficha placeholder desktop */
+#fichaPlaceholder { display: none; flex-direction: column; align-items: center;
+                    justify-content: center; height: 60vh; color: var(--nt-muted);
+                    font-size: 14px; text-align: center; padding: 40px; }
+#fichaPlaceholder .ph-icon { font-size: 40px; margin-bottom: 12px; opacity: .4; }
+#fichaContent { display: none; animation: ntSlideInR .2s ease; }
+#screenFicha.ficha-abierta #fichaContent { display: block; }
+
+/* Buscador */
+.nt-search-bar { padding: 10px 16px; background: white; border-bottom: 1px solid var(--nt-border);
+                 display: flex; gap: 8px; align-items: center; position: sticky; top: 0; z-index: 5; }
+.nt-search-input { flex: 1; padding: 8px 12px; border: 1.5px solid var(--nt-border); border-radius: 8px;
+                   font-size: 14px; font-family: inherit; background: white; outline: none; }
+.nt-search-input:focus { border-color: var(--nt-primary); }
+.btn-agrupar { padding: 7px 12px; border-radius: 7px; border: 1.5px solid var(--nt-border);
+               background: white; font-size: 12px; font-weight: 700; cursor: pointer;
+               white-space: nowrap; color: var(--nt-gray); flex-shrink: 0; }
+.btn-agrupar.on { background: var(--nt-primary-light); color: var(--nt-primary); border-color: var(--nt-primary); }
+
+/* Grupo portal */
+.grupo-hdr { display: flex; align-items: center; justify-content: space-between;
+             padding: 8px 4px 4px; margin-top: 10px; animation: fadeIn .18s ease; }
+.grupo-hdr:first-child { margin-top: 0; }
+.grupo-portal { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--nt-muted); }
+.no-results { padding: 32px 16px; text-align: center; color: var(--nt-muted); font-size: 14px; }
+
+/* Animaciones */
+@keyframes fadeUp   { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn   { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ntSlideInR { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes pulseRing { 0%,100% { box-shadow: 0 0 0 0 rgba(29,78,216,.15); } 50% { box-shadow: 0 0 0 6px rgba(29,78,216,0); } }
+
+/* ── LAYOUT DESKTOP ── */
+@media (min-width: 800px) {
+  #ntLayout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    height: calc(100vh - 44px);
+    overflow: hidden;
+  }
+  #screenNoticias { display: block !important; overflow-y: auto; border-right: 1px solid var(--nt-border); }
+  #screenFicha    { display: block !important; overflow-y: auto; }
+  #fichaPlaceholder { display: flex !important; }
+  #screenFicha.ficha-abierta #fichaPlaceholder { display: none !important; }
+  .nt-back-btn { display: none; }
+  .nt-ficha-header { position: sticky; top: 0; background: white; z-index: 6; }
+  .nt-search-bar { top: 0; }
+  .nt-modal-overlay.open { align-items: center; }
+  .nt-modal { border-radius: 12px; margin: auto; }
+  @keyframes ntSlideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+}
+</style>
 </head>
 <body>
 
@@ -94,7 +424,6 @@
         <button class="home-btn home-btn-noticias" onclick="showScreen('noticias')">
             <span class="home-btn-icon">🔔</span>
             <span>Noticias</span>
-            <span class="home-btn-sub">En desarrollo</span>
         </button>
     </div>
     <div class="home-attribution">
@@ -254,52 +583,403 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- ── NOTICIAS SECTION ── -->
-<div id="noticiasSection">
+<!-- ── NOTICIAS V2 SECTION ── -->
+<div id="noticiasSection" style="display:none">
+<div id="ntLayout">
 
-  <!-- Buscador / índice -->
-  <div id="noticiasListView" class="container">
-    <div class="card">
-        <div class="field">
-            <label>Buscar</label>
-            <input type="text" id="noticiasSearch" placeholder="Calle, número, piso, puerta, propietario..."
-                   oninput="filtrarNoticias()" autocomplete="off">
-        </div>
-        <label class="noticias-toggle">
-            <input type="checkbox" id="noticiasSoloAbiertas" checked onchange="filtrarNoticias()">
-            Solo casos con ficha abierta
-        </label>
-    </div>
-    <div id="noticiasResults">
-        <div class="noticias-empty">Cargando índice…</div>
-    </div>
-    <div style="height:20px"></div>
+<!-- Panel lista -->
+<div class="screen" id="screenNoticias">
+  <div class="nt-nav-tabs">
+    <button class="nt-nav-tab active" onclick="ntShowTab('lista')">Mis noticias</button>
+    <button class="nt-nav-tab" onclick="ntShowTab('reportes')">Reportes</button>
   </div>
 
-  <!-- Detalle de ficha -->
-  <div id="noticiasDetailView" class="container" style="display:none">
-    <button class="buz-back-btn" onclick="cerrarDetalleNoticia()">← Buscador</button>
-
-    <div class="card" id="noticiasDetailHeader"></div>
-
-    <div class="card">
-        <div class="card-label">Seguimiento</div>
-        <div id="noticiasTimeline"></div>
+  <div id="tabLista">
+    <div class="nt-search-bar">
+      <input class="nt-search-input" id="buscarInput" type="search" placeholder="Buscar calle, portal, piso…" oninput="filtrarNoticias()">
+      <button class="btn-agrupar" id="btnAgrupar" onclick="toggleAgrupar()">Por portal</button>
     </div>
-
-    <div class="card">
-        <div class="field">
-            <label>Nueva nota</label>
-            <textarea id="noticiasNotaInput" placeholder="Qué pasó en esta visita o llamada..." style="height:80px"></textarea>
+    <div class="nt-list-wrap">
+      <div class="list-hdr">
+        <h2 id="listaTitulo">Mis noticias</h2>
+        <span class="count-badge" id="listaCount">0</span>
+      </div>
+      <div id="listaCards">
+        <div class="nt-empty-state">
+          <div class="nt-spinner" style="border-color:rgba(0,0,0,.1);border-top-color:#1d4ed8;width:24px;height:24px;display:inline-block;border:2px solid rgba(0,0,0,.1);border-top-color:#1d4ed8;border-radius:50%;animation:ntSpin .6s linear infinite;margin:0 auto 12px"></div>
+          Cargando…
         </div>
-        <button class="btn-add-nota" id="btnAgregarNota" onclick="agregarNotaNoticia()">+ Añadir nota</button>
+      </div>
     </div>
-
-    <button class="btn-cerrar-caso" id="btnCerrarCaso" onclick="cerrarCasoNoticia()">✓ Cerrar caso</button>
-    <div style="height:24px"></div>
   </div>
 
+  <div id="tabReportes" style="display:none;padding-bottom:30px">
+    <div style="padding:16px 16px 8px"><h2 style="font-size:15px;font-weight:700;margin:0">Reportes</h2></div>
+    <div class="rep-section">
+      <div class="rep-title">📞 Solicitar teléfonos — Esther <span class="count-badge" id="repEstherCount">0</span></div>
+      <div id="repEstherList"><div style="padding:14px 16px;font-size:13px;color:#888">Sin solicitudes pendientes.</div></div>
+    </div>
+    <div class="rep-section">
+      <div class="rep-title">📄 Notas Simples pendientes <span class="count-badge" id="repNotaCount">0</span></div>
+      <div id="repNotaList"><div style="padding:14px 16px;font-size:13px;color:#888">Sin notas simples solicitadas.</div></div>
+    </div>
+  </div>
 </div>
+
+<!-- Panel ficha -->
+<div class="screen" id="screenFicha">
+  <div id="fichaPlaceholder">
+    <div class="ph-icon">🔍</div>
+    <div>Seleccioná una noticia para ver el detalle</div>
+  </div>
+  <div id="fichaContent" style="display:none">
+  <div class="nt-ficha-header">
+    <button class="nt-back-btn" onclick="volverLista()">← Mis noticias</button>
+    <div class="ficha-title-row">
+      <div class="ficha-addr" id="fichaAddr">—</div>
+      <div class="ficha-date" id="fichaDate">—</div>
+    </div>
+    <div class="nt-ficha-meta" id="fichaMeta"></div>
+    <div class="etapa-row">
+      <span class="nt-badge" id="fichaEtapaBadge">—</span>
+      <button class="btn-avanzar" onclick="ntOpenModal('avanzar')">Avanzar etapa</button>
+    </div>
+  </div>
+
+  <div class="panel-rapido">
+    <div class="pr-header">
+      <div class="pr-label">Vista rápida</div>
+      <button class="pr-edit-btn" onclick="ntOpenModal('editarPiso')">✏️ Editar</button>
+    </div>
+    <div class="pr-grid" id="panelRapidoGrid">
+      <div class="pr-item"><div class="pr-item-label">Cargando…</div></div>
+    </div>
+  </div>
+
+  <div class="pipeline-wrap">
+    <div class="pip-label">Pipeline de investigación</div>
+    <div class="pipeline" id="pipeline"></div>
+    <div class="pip-reinicio">↩ Nota Simple aporta datos nuevos → reinicia desde <strong>Inglobably</strong></div>
+  </div>
+
+  <div class="nt-ficha-body">
+    <div class="nt-section">
+      <div class="sec-hdr" onclick="ntToggleSec(this)">Información Inglobably <span>▾</span></div>
+      <div class="sec-body">
+        <div class="info-row" id="inglobablyInfo"></div>
+        <button class="btn-link" onclick="ntOpenModal('notaInglobably')">+ Agregar nota</button>
+      </div>
+    </div>
+
+    <div class="nt-section">
+      <div class="sec-hdr" onclick="ntToggleSec(this)">Posibles propietarios <span>▾</span></div>
+      <div class="sec-body">
+        <div class="cand-actions">
+          <button class="btn-sm" onclick="ntOpenModal('addProp')">+ Agregar propietario</button>
+        </div>
+        <div id="propietariosList"></div>
+      </div>
+    </div>
+
+    <div class="nt-section">
+      <div class="sec-hdr" onclick="ntToggleSec(this)">Candidatos a llamar <span>▾</span></div>
+      <div class="sec-body">
+        <div class="cand-actions">
+          <button class="btn-sm" onclick="ntOpenModal('candidato')">+ Agregar candidato</button>
+        </div>
+        <div id="candidatosList"></div>
+      </div>
+    </div>
+
+    <div class="nt-section">
+      <div class="sec-hdr" onclick="ntToggleSec(this)">Próxima acción <span>▾</span></div>
+      <div class="sec-body" id="proximaAccionBox"></div>
+    </div>
+
+    <div class="nt-section">
+      <div class="sec-hdr" onclick="ntToggleSec(this)">¿Bloqueado/a? Siguiente paso <span>▾</span></div>
+      <div class="sec-body">
+        <div class="acc-row">
+          <button class="btn-acc" onclick="ntOpenModal('esther')">📞 Solicitar tel. a Esther</button>
+          <button class="btn-acc" onclick="ntOpenModal('notasimple')">📄 Pedir Nota Simple</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="nt-section">
+      <div class="sec-hdr" onclick="ntToggleSec(this)">Historial <span>▾</span></div>
+      <div class="sec-body" id="historialBox"></div>
+    </div>
+
+    <div class="section-cerrar">
+      <button class="btn-acc btn-danger" style="width:100%" onclick="ntOpenModal('cerrar')">Cerrar noticia</button>
+    </div>
+  </div>
+  </div><!-- /#fichaContent -->
+</div><!-- /#screenFicha -->
+
+</div><!-- /#ntLayout -->
+
+<!-- ══ MODALES NOTICIAS ══ -->
+
+<div class="nt-modal-overlay" id="nt-modal-avanzar">
+  <div class="nt-modal">
+    <div class="nt-modal-title">Avanzar etapa</div>
+    <div class="nt-form-group">
+      <label>Nueva etapa</label>
+      <select id="selectEtapa">
+        <option value="Investigando">Investigando</option>
+        <option value="Llamando (ABC)">Llamando (ABC)</option>
+        <option value="Solicitar teléfonos Esther">Solicitar teléfonos Esther</option>
+        <option value="Esperando Nota Simple">Esperando Nota Simple</option>
+        <option value="Nota Simple recibida">Nota Simple recibida</option>
+        <option value="Contactado">Contactado</option>
+      </select>
+    </div>
+    <div class="nt-form-group">
+      <label>Notas del cambio (opcional)</label>
+      <textarea id="notaEtapa" placeholder="Por qué se avanza…"></textarea>
+    </div>
+    <div class="nt-modal-actions">
+      <button class="nt-btn-cancel" onclick="ntCloseModal('avanzar')">Cancelar</button>
+      <button class="nt-btn-primary" id="btnConfirmEtapa" onclick="confirmarEtapa()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="nt-modal-overlay" id="nt-modal-llamada">
+  <div class="nt-modal">
+    <div class="nt-modal-title">Registrar llamada</div>
+    <div class="nt-modal-info" id="llamadaCandInfo"></div>
+    <div class="nt-form-group">
+      <label>¿Suena el número?</label>
+      <select id="llamadaSuena">
+        <option value="Sí">Sí, suena</option>
+        <option value="No">No, no existe / apagado</option>
+        <option value="Sin probar">Sin probar aún</option>
+      </select>
+    </div>
+    <div class="nt-form-group">
+      <label>Resultado</label>
+      <select id="llamadaEstado">
+        <option value="Suena / sin respuesta">Suena / sin respuesta</option>
+        <option value="Suena / no relacionado">Suena / no relacionado</option>
+        <option value="No existe">No existe el número</option>
+        <option value="Descartado">Descartado</option>
+        <option value="Confirmado propietario">Confirmado propietario ✓</option>
+      </select>
+    </div>
+    <div class="nt-form-group">
+      <label>Notas</label>
+      <textarea id="llamadaNotas" placeholder="Qué pasó en la llamada…"></textarea>
+    </div>
+    <div class="nt-form-group">
+      <label>Próxima acción</label>
+      <input type="text" id="llamadaProxAccion" placeholder="Reintentar, buscar otro número…">
+    </div>
+    <div class="nt-form-group">
+      <label>Fecha próxima acción</label>
+      <input type="date" id="llamadaFechaProx">
+    </div>
+    <div class="nt-modal-actions">
+      <button class="nt-btn-cancel" onclick="ntCloseModal('llamada')">Cancelar</button>
+      <button class="nt-btn-primary" id="btnGuardarLlamada" onclick="guardarLlamada()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="nt-modal-overlay" id="nt-modal-candidato">
+  <div class="nt-modal">
+    <div class="nt-modal-title">Agregar candidato</div>
+    <div class="nt-form-group">
+      <label>Apellido buscado</label>
+      <input type="text" id="candApellido" placeholder="Apellido usado en la búsqueda">
+    </div>
+    <div class="nt-form-group">
+      <label>Nombre completo</label>
+      <input type="text" id="candNombre" placeholder="Apellido, Nombre">
+    </div>
+    <div class="nt-form-group">
+      <label>Teléfono</label>
+      <input type="text" id="candTelefono" placeholder="6XX XXX XXX">
+    </div>
+    <div class="nt-form-group">
+      <label>Fuente</label>
+      <select id="candFuente">
+        <option value="ABC">ABC</option>
+        <option value="Esther">Esther</option>
+        <option value="Nota Simple">Nota Simple</option>
+        <option value="Manual">Manual</option>
+      </select>
+    </div>
+    <div class="nt-modal-actions">
+      <button class="nt-btn-cancel" onclick="ntCloseModal('candidato')">Cancelar</button>
+      <button class="nt-btn-primary" id="btnGuardarCandidato" onclick="guardarCandidato()">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<div class="nt-modal-overlay" id="nt-modal-addProp">
+  <div class="nt-modal" style="max-width:380px">
+    <div class="nt-modal-title">Agregar propietario</div>
+    <div class="nt-modal-info" style="font-size:12px">Datos encontrados en Inglobably. El NIF es necesario para pedir Nota Simple y solicitar teléfono a Esther.</div>
+    <div class="nt-form-group">
+      <label>Nombre completo *</label>
+      <input type="text" id="propNombre" placeholder="Apellido, Nombre">
+    </div>
+    <div class="nt-form-group">
+      <label>NIF</label>
+      <input type="text" id="propNIF" placeholder="12345678A" style="text-transform:uppercase">
+    </div>
+    <div class="nt-form-group">
+      <label>Teléfono (si ya se conoce)</label>
+      <input type="text" id="propTel" placeholder="6XX XXX XXX">
+    </div>
+    <div class="nt-modal-actions">
+      <button class="nt-btn-cancel" onclick="ntCloseModal('addProp')">Cancelar</button>
+      <button class="nt-btn-primary" id="btnGuardarProp" onclick="guardarPropietario()">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<div class="nt-modal-overlay" id="nt-modal-notaInglobably">
+  <div class="nt-modal">
+    <div class="nt-modal-title">Agregar nota de Inglobably</div>
+    <div class="nt-form-group">
+      <label>Nota</label>
+      <textarea id="inglobablyNota" placeholder="Nombres encontrados, NIF, información del inmueble…" style="height:100px"></textarea>
+    </div>
+    <div class="nt-modal-actions">
+      <button class="nt-btn-cancel" onclick="ntCloseModal('notaInglobably')">Cancelar</button>
+      <button class="nt-btn-primary" id="btnGuardarInglobably" onclick="guardarNotaInglobably()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="nt-modal-overlay" id="nt-modal-esther">
+  <div class="nt-modal">
+    <div class="nt-modal-title">Solicitar teléfonos a Esther</div>
+    <div class="nt-modal-info" id="estherInfo"></div>
+    <div class="nt-form-group">
+      <label>Notas adicionales (opcional)</label>
+      <textarea id="estherNotas" placeholder="Contexto extra para la solicitud…"></textarea>
+    </div>
+    <div class="nt-modal-actions">
+      <button class="nt-btn-cancel" onclick="ntCloseModal('esther')">Cancelar</button>
+      <button class="nt-btn-primary" id="btnConfirmEsther" onclick="confirmarEsther()">Confirmar solicitud</button>
+    </div>
+  </div>
+</div>
+
+<div class="nt-modal-overlay" id="nt-modal-notasimple">
+  <div class="nt-modal">
+    <div class="nt-modal-title">Pedir Nota Simple</div>
+    <div class="nt-modal-warn">Último recurso · presencial en el Registro · ~2 semanas. Al recibirla, la ficha vuelve a Inglobably con datos nuevos.</div>
+    <div class="nt-modal-info" id="notasimplePropInfo" style="font-size:12px;display:none"></div>
+    <div class="nt-form-group">
+      <label>Fecha de solicitud</label>
+      <input type="date" id="notasimpleFecha">
+    </div>
+    <div class="nt-form-group">
+      <label>Notas</label>
+      <textarea id="notasimpleNotas" placeholder="Quién fue, referencia…"></textarea>
+    </div>
+    <div class="nt-modal-actions">
+      <button class="nt-btn-cancel" onclick="ntCloseModal('notasimple')">Cancelar</button>
+      <button class="nt-btn-primary" id="btnConfirmNota" onclick="confirmarNotaSimple()">Registrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="nt-modal-overlay" id="nt-modal-quickEstado">
+  <div class="nt-modal" style="max-width:320px">
+    <div class="nt-modal-title">Estado del piso</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="quick-opt" onclick="setEstadoPiso('Parece vacío')">📭 Parece vacío</button>
+      <button class="quick-opt" onclick="setEstadoPiso('Alquilado')">🔑 Alquilado</button>
+      <button class="quick-opt" onclick="setEstadoPiso('Propietario vive')">🏠 Propietario vive</button>
+    </div>
+    <button class="nt-btn-cancel" style="width:100%;margin-top:12px" onclick="ntCloseModal('quickEstado')">Cancelar</button>
+  </div>
+</div>
+
+<div class="nt-modal-overlay" id="nt-modal-editarPiso">
+  <div class="nt-modal">
+    <div class="nt-modal-title">Información del piso</div>
+    <div class="nt-form-group">
+      <label>Estado del piso</label>
+      <select id="editPisoEstado">
+        <option value="">— Sin determinar —</option>
+        <option value="Parece vacío">Parece vacío</option>
+        <option value="Alquilado">Alquilado</option>
+        <option value="Propietario vive">Propietario vive</option>
+      </select>
+    </div>
+    <div class="nt-form-group">
+      <label>Situación (opcional)</label>
+      <input type="text" id="editPisoSituacion" placeholder="Ej: piso 3ª izquierda, parece llevar tiempo vacío…">
+    </div>
+    <div class="nt-form-group">
+      <label>Nota propietario (referencia rápida)</label>
+      <input type="text" id="editPisoProp" placeholder="Nombre/apellido(s) conocido">
+    </div>
+    <div class="nt-form-group">
+      <label>Fecha vencimiento contrato inquilino</label>
+      <input type="date" id="editPisoFechaInquilino">
+    </div>
+    <div class="nt-modal-actions">
+      <button class="nt-btn-cancel" onclick="ntCloseModal('editarPiso')">Cancelar</button>
+      <button class="nt-btn-primary" id="btnGuardarPiso" onclick="guardarInfoPiso()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="nt-modal-overlay" id="nt-modal-tarea">
+  <div class="nt-modal">
+    <div class="nt-modal-title">Próxima acción</div>
+    <div class="nt-form-group">
+      <label>Qué hay que hacer</label>
+      <input type="text" id="tareaAccion" placeholder="Ej: Llamar a Ana García, buscar en Inglobably…">
+    </div>
+    <div class="nt-form-group">
+      <label>Descripción (opcional)</label>
+      <textarea id="tareaDesc" placeholder="Contexto, notas previas, detalles…"></textarea>
+    </div>
+    <div class="nt-form-group">
+      <label>Fecha</label>
+      <input type="date" id="tareaFecha">
+    </div>
+    <div class="nt-modal-actions">
+      <button class="nt-btn-cancel" onclick="ntCloseModal('tarea')">Cancelar</button>
+      <button class="nt-btn-primary" id="btnGuardarTarea" onclick="guardarTarea()">Guardar tarea</button>
+    </div>
+  </div>
+</div>
+
+<div class="nt-modal-overlay" id="nt-modal-cerrar">
+  <div class="nt-modal">
+    <div class="nt-modal-title">Cerrar noticia</div>
+    <div class="nt-form-group">
+      <label>Motivo</label>
+      <select id="cerrarMotivo">
+        <option value="Propietario contactado con éxito">Propietario contactado con éxito</option>
+        <option value="Sin resultado — opciones agotadas">Sin resultado — opciones agotadas</option>
+        <option value="Descartada — no estaba vacía">Descartada — no estaba vacía</option>
+        <option value="Otro">Otro</option>
+      </select>
+    </div>
+    <div class="nt-form-group">
+      <label>Notas finales</label>
+      <textarea id="cerrarNotas" placeholder="Resumen del caso…"></textarea>
+    </div>
+    <div class="nt-modal-actions">
+      <button class="nt-btn-cancel" onclick="ntCloseModal('cerrar')">Cancelar</button>
+      <button class="nt-btn-primary" style="background:#b91c1c" id="btnConfirmCerrar" onclick="confirmarCerrar()">Cerrar noticia</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /#noticiasSection -->
 
 <!-- ── BUZONES SECTION ── -->
 <div id="buzSection">
@@ -480,6 +1160,10 @@
         <label>Escaleras</label>
         <input type="number" id="portalNuevoEscaleras" placeholder="1" min="1">
       </div>
+    </div>
+    <div class="field">
+      <label>Nombres de puertas <span style="font-weight:400;color:#94a3b8;font-size:12px">(opcional, separados por coma)</span></label>
+      <input type="text" id="portalNuevoEtiquetas" placeholder="Ej: Izda, Dcha — o: 1, 2, 3… — vacío: A, B, C…" autocomplete="off">
     </div>
     <div class="field">
       <label>Observaciones</label>
