@@ -510,7 +510,22 @@ function addFloor(savedPiso, fromRestore) {
     const used = [...document.querySelectorAll('.piso-select')].map(s => s.value);
     let suggestion = savedPiso || '';
     if (!suggestion) {
-        for (const p of PISOS) { if (!used.includes(p)) { suggestion = p; break; } }
+        // Sugerir el piso inmediatamente inferior al último añadido (orden descendente)
+        const existingCards = [...document.querySelectorAll('#floorsWrap .floor-card')];
+        if (existingCards.length > 0) {
+            const lastFid  = existingCards[existingCards.length - 1].id;
+            const lastPiso = getPisoValue(lastFid);
+            const idx      = PISOS.indexOf(lastPiso);
+            if (idx > 0) {
+                for (let i = idx - 1; i >= 0; i--) {
+                    if (!used.includes(PISOS[i])) { suggestion = PISOS[i]; break; }
+                }
+            }
+        }
+        // Fallback: primer piso sin usar en orden ascendente
+        if (!suggestion) {
+            for (const p of PISOS) { if (!used.includes(p)) { suggestion = p; break; } }
+        }
     }
 
     const pisoOpts = PISOS.map(p =>
@@ -565,7 +580,23 @@ function addFloor(savedPiso, fromRestore) {
         }
     }
 
-    addDoor(fid);
+    if (!fromRestore) {
+        // Copiar los nombres de puerta de la planta anterior (A/B/C, Izq/Dcha, 1/2/3...)
+        const allFloors = [...document.querySelectorAll('#floorsWrap .floor-card')];
+        let copied = false;
+        if (allFloors.length >= 2) {
+            const prevFid      = allFloors[allFloors.length - 2].id;
+            const prevDoorNames = [...document.querySelectorAll(`#${prevFid}D .puerta-input`)]
+                                    .map(i => i.value).filter(Boolean);
+            if (prevDoorNames.length > 0) {
+                prevDoorNames.forEach(puerta => addDoor(fid, { puerta }));
+                copied = true;
+            }
+        }
+        if (!copied) addDoor(fid);
+    } else {
+        addDoor(fid); // restore lo limpia inmediatamente y repone las puertas guardadas
+    }
     refreshSummary();
 }
 
@@ -1259,6 +1290,15 @@ async function sendToServer() {
         return;
     }
 
+    // Validar que todas las puertas tengan identificador (letra/número)
+    const emptyPuertas = [...document.querySelectorAll('.puerta-input')].filter(i => !i.value.trim());
+    if (emptyPuertas.length > 0) {
+        emptyPuertas[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        emptyPuertas[0].focus();
+        showToast(`⚠️ ${emptyPuertas.length} puerta${emptyPuertas.length > 1 ? 's' : ''} sin letra o número`);
+        return;
+    }
+
     // Validar que todas las puertas tengan estado
     const emptyEstados = [...document.querySelectorAll('.estado-select')].filter(s => !s.value);
     if (emptyEstados.length > 0) {
@@ -1464,220 +1504,779 @@ function showToast(msg) {
 }
 
 // ═════════════════════════════════════════════
-//  MÓDULO NOTICIAS
+//  MÓDULO NOTICIAS V2
 // ═════════════════════════════════════════════
-let noticiasIndice   = null;   // cache en memoria — 1 sola carga por sesión
-let noticiasCargando = false;
-let fichaActual       = null;  // item del índice correspondiente a la ficha abierta en el detalle
+let asesorActual    = '';
+let noticias        = [];
+let fichaData       = null;
+let candidatoActivo = null;
+let filtroTexto     = '';
+let agrupadoActivo  = false;
 
-async function initNoticias() {
-    if (noticiasIndice || noticiasCargando) {
-        filtrarNoticias();
-        return;
-    }
-    noticiasCargando = true;
-    document.getElementById('noticiasResults').innerHTML =
-        '<div class="noticias-empty">Cargando índice…</div>';
-    try {
-        const res    = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            body:   JSON.stringify({ action: 'obtener_indice' })
-        });
-        const result = await res.json();
-        if (!result.ok) throw new Error(result.error || 'Error cargando índice');
-        noticiasIndice = result.indice || [];
-        filtrarNoticias();
-    } catch (err) {
-        document.getElementById('noticiasResults').innerHTML = `
-            <div class="noticias-empty">Error al cargar: ${err.message}<br>
-            <button onclick="recargarNoticias()" style="margin-top:10px;padding:8px 16px;background:#0f172a;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">Reintentar</button></div>`;
-    } finally {
-        noticiasCargando = false;
-    }
+function isDesktop() { return window.innerWidth >= 800; }
+
+const PIP_STEPS = [
+  { label: 'Inglobably',            note: '',               etapas: ['Detectada', 'Investigando'] },
+  { label: 'ABC',                   note: '',               etapas: ['Llamando (ABC)'] },
+  { label: 'Solicitar tel. Esther', note: 'si ABC falla',   etapas: ['Solicitar teléfonos Esther'] },
+  { label: 'Nota Simple',           note: 'último recurso', etapas: ['Esperando Nota Simple', 'Nota Simple recibida'] }
+];
+const ETAPA_ORDER = ['Detectada','Investigando','Llamando (ABC)','Solicitar teléfonos Esther',
+                     'Esperando Nota Simple','Nota Simple recibida','Contactado','Cerrada'];
+
+function pipState(step, etapa) {
+  const curIdx  = ETAPA_ORDER.indexOf(etapa);
+  const stepMax = Math.max(...step.etapas.map(e => ETAPA_ORDER.indexOf(e)));
+  if (step.etapas.includes(etapa)) return 'active';
+  if (curIdx > stepMax) return 'done';
+  return 'pending';
 }
 
-function recargarNoticias() {
-    noticiasIndice = null;
-    initNoticias();
+function badgeClass(etapa) {
+  const map = {
+    'Detectada':                 'b-detectada',
+    'Investigando':              'b-invest',
+    'Llamando (ABC)':            'b-abc',
+    'Solicitar teléfonos Esther':'b-esther',
+    'Esperando Nota Simple':     'b-notasimple',
+    'Nota Simple recibida':      'b-notarec',
+    'Contactado':                'b-contactado',
+    'Cerrada':                   'b-cerrada'
+  };
+  return map[etapa] || 'b-detectada';
+}
+
+function tiempoDesde(fechaStr) {
+  if (!fechaStr) return null;
+  const d = new Date(fechaStr);
+  if (isNaN(d)) return null;
+  const diff = Date.now() - d.getTime();
+  const dias  = Math.floor(diff / 86400000);
+  if (dias === 0) return 'hoy';
+  if (dias === 1) return 'ayer';
+  if (dias < 7)  return `hace ${dias} días`;
+  return `hace ${Math.floor(dias/7)} sem.`;
+}
+
+async function ntApi(payload) {
+  const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+  let data;
+  try { data = await res.json(); }
+  catch(e) { throw new Error('El servidor no respondió con JSON válido.'); }
+  if (!data.ok) throw new Error(data.error || 'Error desconocido del servidor');
+  return data;
+}
+
+function initNoticias() {
+  asesorActual = localStorage.getItem('tz_asesor') || '';
+  document.getElementById('screenNoticias').classList.add('active');
+  document.getElementById('screenFicha').classList.add('active');
+  const hoy = new Date().toISOString().split('T')[0];
+  const fns = document.getElementById('notasimpleFecha');
+  const flp = document.getElementById('llamadaFechaProx');
+  if (fns && !fns.value) fns.value = hoy;
+  if (flp && !flp.value) flp.value = hoy;
+  cargarNoticias();
+}
+
+function ntShowTab(name) {
+  document.getElementById('tabLista').style.display    = name === 'lista'    ? '' : 'none';
+  document.getElementById('tabReportes').style.display = name === 'reportes' ? '' : 'none';
+  document.querySelectorAll('#screenNoticias .nt-nav-tab').forEach((t, i) =>
+    t.classList.toggle('active', i === (name === 'lista' ? 0 : 1)));
+  if (name === 'reportes') renderReportes();
 }
 
 function filtrarNoticias() {
-    if (!noticiasIndice) return;
-    const q            = document.getElementById('noticiasSearch').value.trim().toLowerCase();
-    const soloAbiertas = document.getElementById('noticiasSoloAbiertas').checked;
-
-    let items = noticiasIndice;
-    if (soloAbiertas) items = items.filter(it => it.fichaId);
-    if (q) {
-        items = items.filter(it => {
-            const hay = [it.calle, it.numero, it.escalera, it.piso, it.puerta, it.nombre, it.telefono]
-                        .map(v => String(v || '').toLowerCase()).join(' | ');
-            return hay.includes(q);
-        });
-    }
-    renderNoticiasResults(items);
+  filtroTexto = document.getElementById('buscarInput').value.toLowerCase().trim();
+  renderLista();
 }
 
-function renderNoticiasResults(items) {
-    const box = document.getElementById('noticiasResults');
-    if (!items.length) {
-        box.innerHTML = '<div class="noticias-empty">Sin resultados.</div>';
-        window._noticiasRenderItems = [];
-        return;
-    }
-    // Fichas abiertas primero
-    const ordenados = [...items].sort((a, b) => (b.fichaId ? 1 : 0) - (a.fichaId ? 1 : 0));
-    window._noticiasRenderItems = ordenados;
-
-    box.innerHTML = ordenados.slice(0, 150).map((it, i) => {
-        const dir     = [it.calle, it.numero].filter(Boolean).join(' ');
-        const detalle = [it.escalera, it.piso, it.puerta ? `Puerta ${it.puerta}` : ''].filter(Boolean).join(' — ');
-        const badge   = it.fichaId
-            ? '<span class="noticia-badge abierta">Ficha abierta</span>'
-            : (it.estado === 'Noticia' ? '<span class="noticia-badge cerrada">Caso cerrado</span>' : '');
-        return `
-        <div class="noticia-result-item" onclick="abrirFicha(${i})">
-            <div class="noticia-result-info">
-                <div class="noticia-result-title">${dir || 'Sin calle'}</div>
-                <div class="noticia-result-meta">${detalle || it.estado || ''}</div>
-            </div>
-            ${badge}
-        </div>`;
-    }).join('');
+function toggleAgrupar() {
+  agrupadoActivo = !agrupadoActivo;
+  document.getElementById('btnAgrupar').classList.toggle('on', agrupadoActivo);
+  renderLista();
 }
 
-async function abrirFicha(idx) {
-    const item = window._noticiasRenderItems?.[idx];
-    if (!item) return;
-    fichaActual = item;
-
-    document.getElementById('noticiasListView').style.display   = 'none';
-    document.getElementById('noticiasDetailView').style.display = '';
-    document.getElementById('noticiasNotaInput').value = '';
-
-    const dir     = [item.calle, item.numero].filter(Boolean).join(' ');
-    const detalle = [item.escalera, item.piso, item.puerta ? `Puerta ${item.puerta}` : ''].filter(Boolean).join(' — ');
-
-    document.getElementById('noticiasDetailHeader').innerHTML = `
-        <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:2px">${dir || 'Sin calle'}</div>
-        <div style="font-size:13px;color:#94a3b8;margin-bottom:10px">${detalle}</div>
-        <div class="noticia-detail-row"><span>Propietario</span><span>${item.nombre || '—'}</span></div>
-        <div class="noticia-detail-row"><span>Teléfono</span><span>${item.telefono || '—'}</span></div>
-        <div class="noticia-detail-row"><span>Zona / Asesor</span><span>${[item.zona, item.asesor].filter(Boolean).join(' · ') || '—'}</span></div>
-        <div class="noticia-detail-row"><span>Estado</span><span>${item.fichaId ? 'En investigación' : 'Caso cerrado'}</span></div>
-    `;
-
-    const btnNota   = document.getElementById('btnAgregarNota');
-    const btnCerrar = document.getElementById('btnCerrarCaso');
-    const sinFicha  = !item.fichaId;
-    btnNota.disabled         = sinFicha;
-    btnCerrar.style.display  = sinFicha ? 'none' : '';
-
-    const timeline = document.getElementById('noticiasTimeline');
-    if (sinFicha) {
-        timeline.innerHTML = '<div class="noticias-empty">Esta puerta no tiene una ficha abierta actualmente.</div>';
-        return;
-    }
-
-    timeline.innerHTML = '<div class="noticias-empty">Cargando…</div>';
-    try {
-        const res    = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            body:   JSON.stringify({ action: 'obtener_seguimiento', fichaId: item.fichaId })
-        });
-        const result = await res.json();
-        if (!result.ok) throw new Error(result.error || 'Error cargando seguimiento');
-        renderTimeline(result.seguimiento || []);
-    } catch (err) {
-        timeline.innerHTML = `<div class="noticias-empty">Error: ${err.message}</div>`;
-    }
+function noticiasFiltradas() {
+  if (!filtroTexto) return noticias.map((n, i) => ({ n, i }));
+  return noticias.map((n, i) => ({ n, i })).filter(({ n }) => {
+    const texto = [n.calle, n.numero, n.escalera, n.piso, n.puerta, n.zona].join(' ').toLowerCase();
+    return texto.includes(filtroTexto);
+  });
 }
 
-function renderTimeline(rows) {
-    const timeline = document.getElementById('noticiasTimeline');
-    if (!rows.length) {
-        timeline.innerHTML = '<div class="noticias-empty">Sin notas todavía.</div>';
-        return;
-    }
-    // Más reciente arriba
-    timeline.innerHTML = [...rows].reverse().map(r => `
-        <div class="timeline-item">
-            <div class="timeline-fecha">${r.fecha || ''}</div>
-            <div class="timeline-autor">${r.autor || 'Sin autor'}</div>
-            <div class="timeline-nota">${String(r.nota || '').replace(/</g, '&lt;')}</div>
+function renderCard(n, i) {
+  const dir    = [n.calle, n.numero].filter(Boolean).join(' ');
+  const ubi    = [n.escalera, n.piso, n.puerta ? `Puerta ${n.puerta}` : ''].filter(Boolean).join(' · ');
+  const cuando = tiempoDesde(n.fecha_proxima_accion);
+  return `
+  <div class="noticia-card" id="nt-card-${i}" onclick="abrirFichaNoticia(${i})">
+    <div class="card-top">
+      <div>
+        <div class="card-addr">${dir || 'Sin dirección'}</div>
+        <div class="card-meta">${ubi}${n.zona ? ' · ' + n.zona : ''}</div>
+      </div>
+      <span class="nt-badge ${badgeClass(n.etapa_actual)}">${n.etapa_actual || 'Detectada'}</span>
+    </div>
+    <div class="card-bottom">
+      <span class="card-last">${n.estado_piso || '—'}</span>
+      <span class="card-prox">${n.proxima_accion ? '→ ' + n.proxima_accion.slice(0,28) + (n.proxima_accion.length > 28 ? '…' : '') + (cuando ? ' · ' + cuando : '') : ''}</span>
+    </div>
+  </div>`;
+}
+
+async function cargarNoticias() {
+  document.getElementById('listaCards').innerHTML = `
+    <div class="nt-empty-state">
+      <div style="width:24px;height:24px;border:2px solid rgba(0,0,0,.1);border-top-color:#1d4ed8;border-radius:50%;animation:ntSpin .6s linear infinite;margin:0 auto 12px"></div>
+      Cargando…
+    </div>`;
+  try {
+    const data = await ntApi({ action: 'listar_noticias', asesor: asesorActual });
+    noticias = data.noticias || [];
+    renderLista();
+  } catch (err) {
+    document.getElementById('listaCards').innerHTML = `
+      <div class="nt-empty-state">
+        <div style="font-weight:700;color:#b91c1c;margin-bottom:6px">Error al conectar</div>
+        <div style="font-size:12px;background:#fee2e2;padding:10px;border-radius:8px;text-align:left;word-break:break-word;max-width:320px;margin:0 auto">${err.message}</div>
+        <button class="btn-sm" style="margin-top:14px" onclick="cargarNoticias()">Reintentar</button>
+      </div>`;
+  }
+}
+
+function renderLista() {
+  const box = document.getElementById('listaCards');
+  if (!noticias.length) {
+    document.getElementById('listaCount').textContent = '0';
+    box.innerHTML = `
+      <div class="nt-empty-state">
+        <div style="font-size:32px;margin-bottom:8px">🔔</div>
+        <div style="margin-bottom:16px">No hay noticias abiertas para <strong>${asesorActual}</strong>.</div>
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;max-width:300px;margin:0 auto;text-align:left">
+          <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px">¿Tenés puertas marcadas como "Sospechoso" en Taratura?</div>
+          <div style="font-size:12px;color:#78350f;margin-bottom:12px">Usá este botón para importarlas todas de una vez. Solo hay que hacerlo una vez.</div>
+          <button class="nt-btn-primary" id="btnMigrar" onclick="migrarSospechosos()" style="width:100%">Importar Sospechosos existentes</button>
         </div>
+      </div>`;
+    return;
+  }
+  const lista = noticiasFiltradas();
+  document.getElementById('listaCount').textContent = lista.length;
+  if (!lista.length) {
+    box.innerHTML = `<div style="padding:14px 16px;font-size:13px;color:#888">Sin resultados para "<strong>${filtroTexto}</strong>"</div>`;
+    return;
+  }
+  if (agrupadoActivo) {
+    const grupos = {};
+    lista.forEach(({ n, i }) => {
+      const key = [n.calle, n.numero].filter(Boolean).join(' ') || 'Sin dirección';
+      if (!grupos[key]) grupos[key] = [];
+      grupos[key].push({ n, i });
+    });
+    box.innerHTML = Object.entries(grupos).map(([portal, items]) => `
+      <div class="grupo-hdr">
+        <span class="grupo-portal">${portal}</span>
+        <span class="count-badge">${items.length}</span>
+      </div>
+      <div class="grupo-cards">${items.map(({ n, i }) => renderCard(n, i)).join('')}</div>
     `).join('');
+  } else {
+    box.innerHTML = lista.map(({ n, i }) => renderCard(n, i)).join('');
+  }
 }
 
-function cerrarDetalleNoticia() {
-    document.getElementById('noticiasDetailView').style.display = 'none';
-    document.getElementById('noticiasListView').style.display   = '';
-    document.getElementById('noticiasNotaInput').value = '';
-    fichaActual = null;
+async function abrirFichaNoticia(idx) {
+  const n = noticias[idx];
+  if (!n) return;
+  document.querySelectorAll('.noticia-card').forEach(c => c.classList.remove('card-sel'));
+  const card = document.getElementById('nt-card-' + idx);
+  if (card) card.classList.add('card-sel');
+  if (!isDesktop()) {
+    document.getElementById('screenNoticias').classList.remove('active');
+  }
+  document.getElementById('screenFicha').classList.add('ficha-abierta');
+  document.getElementById('fichaPlaceholder').style.display = 'none';
+  document.getElementById('fichaContent').style.display     = '';
+  document.getElementById('fichaAddr').textContent = buildAddr(n);
+  document.getElementById('fichaDate').textContent  = formatFecha(n.fecha_deteccion);
+  document.getElementById('fichaMeta').innerHTML    = `<span>${n.zona || ''}</span>`;
+  document.getElementById('fichaEtapaBadge').textContent = n.etapa_actual || 'Detectada';
+  document.getElementById('fichaEtapaBadge').className   = 'nt-badge ' + badgeClass(n.etapa_actual);
+  document.getElementById('panelRapidoGrid').innerHTML    = '<div class="pr-item full"><div class="pr-item-label">Cargando…</div></div>';
+  document.getElementById('propietariosList').innerHTML   = '<div style="color:#888;font-size:13px;padding:4px 0">Cargando…</div>';
+  document.getElementById('candidatosList').innerHTML     = '<div style="color:#888;font-size:13px;padding:4px 0">Cargando…</div>';
+  document.getElementById('historialBox').innerHTML       = '<div style="color:#888;font-size:13px;padding:4px 0">Cargando historial…</div>';
+  try {
+    const data = await ntApi({ action: 'get_ficha_noticia', ficha_id: n.ficha_id });
+    fichaData = data;
+    renderFicha();
+  } catch (err) {
+    showToast('Error cargando ficha: ' + err.message);
+  }
 }
 
-async function agregarNotaNoticia() {
-    if (!fichaActual || !fichaActual.fichaId) return;
-    const input = document.getElementById('noticiasNotaInput');
-    const nota  = input.value.trim();
-    if (!nota) { showToast('Escribe algo antes de añadir la nota'); return; }
+function renderFicha() {
+  if (!fichaData) return;
+  const { ficha, candidatos, seguimiento } = fichaData;
+  document.getElementById('fichaAddr').textContent = buildAddr(ficha);
+  document.getElementById('fichaDate').textContent  = formatFecha(ficha.fecha_deteccion);
+  document.getElementById('fichaMeta').innerHTML    = `<span>${ficha.zona || ''}</span><span>${ficha.asesor || ''}</span>`;
+  document.getElementById('fichaEtapaBadge').textContent = ficha.etapa_actual || 'Detectada';
+  document.getElementById('fichaEtapaBadge').className   = 'nt-badge ' + badgeClass(ficha.etapa_actual);
+  document.getElementById('selectEtapa').value           = ficha.etapa_actual || 'Detectada';
+  renderPipeline(ficha.etapa_actual);
+  renderPanelRapido(ficha, candidatos, seguimiento);
+  renderInglobably(ficha, seguimiento);
+  const ingPropsAll = (candidatos || []).filter(c => c.fuente === 'Inglobably');
+  const llamarAll   = (candidatos || []).filter(c => c.fuente !== 'Inglobably');
+  renderPropietarios(ingPropsAll);
+  renderCandidatos(llamarAll);
+  renderProximaAccion(ficha);
+  renderHistorial(seguimiento);
+}
 
-    const btn = document.getElementById('btnAgregarNota');
-    btn.disabled    = true;
-    btn.textContent = 'Guardando…';
+function renderPipeline(etapa) {
+  document.getElementById('pipeline').innerHTML = PIP_STEPS.map((step, i) => {
+    const state = pipState(step, etapa || 'Detectada');
+    const num   = state === 'done' ? '✓' : (i + 1);
+    return `
+      <div class="pip-step ${state}">
+        <div class="pip-dot">${num}</div>
+        <div class="pip-name">${step.label}</div>
+        ${step.note ? `<div class="pip-note">${step.note}</div>` : ''}
+      </div>`;
+  }).join('');
+}
 
-    try {
-        const res    = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            body:   JSON.stringify({
-                action:  'agregar_seguimiento',
-                fichaId: fichaActual.fichaId,
-                autor:   localStorage.getItem('tz_asesor') || '',
-                nota
-            })
-        });
-        const result = await res.json();
-        if (!result.ok) throw new Error(result.error || 'Error guardando nota');
+function renderPanelRapido(ficha, candidatos, seguimiento) {
+  const grid   = document.getElementById('panelRapidoGrid');
+  const parts  = [];
+  const epMap  = { 'Parece vacío': 'ep-vacio', 'Alquilado': 'ep-alquilado', 'Propietario vive': 'ep-prop' };
+  const epClass = epMap[ficha.estado_piso] || 'ep-sin-datos';
+  parts.push(`
+    <div class="pr-item pr-item-btn" onclick="ntOpenModal('quickEstado')" title="Toca para cambiar">
+      <div class="pr-item-label">Estado del piso ›</div>
+      ${ficha.estado_piso
+        ? `<span class="estado-piso ${epClass}">${ficha.estado_piso}</span>
+           ${ficha.situacion ? `<div class="pr-item-sub">${ficha.situacion}</div>` : ''}`
+        : `<div class="pr-item-placeholder">Toca para establecer</div>`}
+    </div>`);
+  const ingProps  = (candidatos || []).filter(c => c.fuente === 'Inglobably');
+  const firstProp = ingProps[0];
+  const propLabel = ingProps.length ? `Propietarios (${ingProps.length}) ›` : 'Propietarios ›';
+  parts.push(`
+    <div class="pr-item pr-item-btn" onclick="ntOpenModal('addProp')" title="Agregar propietario">
+      <div class="pr-item-label">${propLabel}</div>
+      ${firstProp
+        ? `<div class="pr-item-val">${firstProp.nombre}${ingProps.length > 1 ? `<span style="font-size:11px;color:#888;font-weight:400"> +${ingProps.length - 1} más</span>` : ''}</div>
+           <div class="pr-item-sub">${firstProp.nif ? 'NIF: ' + firstProp.nif : '<span style="color:#888;font-style:italic">Sin NIF</span>'}</div>`
+        : `<div class="pr-item-placeholder">Toca para agregar</div>`}
+    </div>`);
+  if (ficha.fecha_contrato_inquilino) {
+    parts.push(`
+      <div class="inquilino-alert">
+        <div class="ia-icon">⚠️</div>
+        <div>
+          <div class="ia-title">Inquilino podría irse pronto</div>
+          <div class="ia-sub">Contrato vence: ${formatFecha(ficha.fecha_contrato_inquilino)} · buen momento para contactar</div>
+        </div>
+      </div>`);
+  }
+  const ultimoSeg = seguimiento && seguimiento.length ? seguimiento[seguimiento.length - 1] : null;
+  const hace      = ultimoSeg ? tiempoDesde(ultimoSeg.fecha) : null;
+  const dotMap    = { 'Pendiente': 'pend', 'Suena / sin respuesta': 'sinresp',
+                      'Suena / no relacionado': 'sinresp', 'No existe': 'descart',
+                      'Descartado': 'descart', 'Confirmado propietario': 'confirm' };
+  const dots = (candidatos || []).map(c =>
+    `<div class="int-dot ${dotMap[c.estado] || 'pend'}" title="${c.nombre} — ${c.estado}"></div>`
+  ).join('');
+  const totalIntentos = (candidatos || []).filter(c => c.estado !== 'Pendiente').length;
+  parts.push(`
+    <div class="ultimo-intento">
+      <div class="ui-label">Último intento</div>
+      ${ultimoSeg ? `
+        <div class="ui-row">
+          <div class="ui-desc">${ultimoSeg.nota ? ultimoSeg.nota.slice(0,50) : 'Nota sin descripción'}</div>
+          ${hace ? `<span class="ui-hace">${hace}</span>` : ''}
+        </div>
+        <div class="ui-sub">${formatFecha(ultimoSeg.fecha)} · ${ultimoSeg.autor || ''}</div>
+      ` : '<div class="ui-sub" style="color:#888;font-style:italic">Sin intentos todavía</div>'}
+      ${dots ? `<div class="intentos-row">${dots}<span class="int-label">${totalIntentos} intento${totalIntentos !== 1 ? 's' : ''}</span></div>` : ''}
+    </div>`);
+  if (ficha.proxima_accion) {
+    const cuando = tiempoDesde(ficha.fecha_proxima_accion);
+    parts.push(`
+      <div class="pr-item full">
+        <div class="pr-item-label">Próxima acción</div>
+        <div class="pr-item-val">${ficha.proxima_accion}</div>
+        <div class="pr-item-sub" style="color:#1d4ed8;font-weight:600">${formatFecha(ficha.fecha_proxima_accion)}${cuando ? ' · ' + cuando : ''}</div>
+      </div>`);
+  }
+  grid.innerHTML = parts.join('');
+}
 
-        input.value = '';
-        showToast('✓ Nota añadida');
-        await abrirFicha(window._noticiasRenderItems.indexOf(fichaActual));
-    } catch (err) {
-        showToast('Error: ' + err.message);
-    } finally {
-        btn.disabled    = false;
-        btn.textContent = '+ Añadir nota';
+function renderInglobably(ficha, seguimiento) {
+  const box   = document.getElementById('inglobablyInfo');
+  const notas = (seguimiento || []).map(s => `
+    <div style="margin-bottom:6px">
+      <div style="font-size:10px;color:#888;margin-bottom:4px">${s.autor || ''} · ${formatFecha(s.fecha)}</div>
+      ${s.nota || '—'}
+    </div>`).join('');
+  box.innerHTML = notas || '<div style="color:#888;font-size:13px;font-style:italic">Sin notas de Inglobably todavía.</div>';
+}
+
+function renderPropietarios(props) {
+  const box = document.getElementById('propietariosList');
+  if (!props || !props.length) {
+    box.innerHTML = '<div style="color:#888;font-size:13px;font-style:italic">Sin propietarios identificados. Agregá los datos encontrados en Inglobably.</div>';
+    return;
+  }
+  box.innerHTML = props.map(p => `
+    <div class="cand-item">
+      <div class="cand-top">
+        <div>
+          <div class="cand-nombre">${p.nombre || '—'}</div>
+          <div class="${p.nif ? 'prop-nif' : 'prop-nif missing'}">
+            ${p.nif ? `<span class="nif-badge">NIF</span> ${p.nif}` : 'Sin NIF — necesario para Nota Simple y Esther'}
+          </div>
+          ${p.telefono ? `<div class="cand-tel" style="margin-top:3px">${p.telefono}</div>` : ''}
+        </div>
+        ${p.estado === 'Confirmado propietario' ? '<span class="nt-fuente f-inglobably">Confirmado</span>' : '<span class="nt-fuente f-inglobably">Inglobably</span>'}
+      </div>
+    </div>`).join('');
+}
+
+function renderCandidatos(candidatos) {
+  const box = document.getElementById('candidatosList');
+  if (!candidatos || !candidatos.length) {
+    box.innerHTML = '<div style="color:#888;font-size:13px;font-style:italic">Sin candidatos cargados.</div>';
+    return;
+  }
+  const fuenteClass = { ABC: 'f-abc', Esther: 'f-esther', 'Nota Simple': 'f-nota', Manual: 'f-manual' };
+  const estadoIcon  = { 'Pendiente': '🕐', 'Suena / sin respuesta': '📵', 'Suena / no relacionado': '🔇',
+                        'No existe': '❌', 'Descartado': '❌', 'Confirmado propietario': '✅' };
+  box.innerHTML = candidatos.map(c => `
+    <div class="cand-item">
+      <div class="cand-top">
+        <div>
+          <div class="cand-nombre">${c.nombre || '—'}</div>
+          <div class="cand-tel">${c.telefono || '—'}</div>
+        </div>
+        <span class="nt-fuente ${fuenteClass[c.fuente] || 'f-manual'}">${c.fuente || '—'}</span>
+      </div>
+      <div class="cand-bottom">
+        <span class="cand-estado">${estadoIcon[c.estado] || '🕐'} ${c.estado || 'Pendiente'}</span>
+        <button class="btn-sm" onclick="abrirLlamada(${c.row_num})">Registrar llamada</button>
+      </div>
+      ${c.proxima_accion ? `<div class="cand-prox" style="margin-top:4px">→ ${c.proxima_accion}${c.fecha_proxima_accion ? ' · ' + formatFecha(c.fecha_proxima_accion) : ''}</div>` : ''}
+    </div>`).join('');
+}
+
+function renderProximaAccion(ficha) {
+  const pb = document.getElementById('proximaAccionBox');
+  if (ficha.proxima_accion) {
+    const cuando = tiempoDesde(ficha.fecha_proxima_accion);
+    pb.innerHTML = `
+      <div class="prox-box">
+        <div class="prox-box-row">
+          <div>
+            <div class="prox-text">${ficha.proxima_accion}</div>
+            <div class="prox-fecha">${formatFecha(ficha.fecha_proxima_accion)}${cuando ? ' · ' + cuando : ''}</div>
+          </div>
+          <button class="prox-edit-btn" onclick="abrirModalTarea()">Editar</button>
+        </div>
+      </div>`;
+  } else {
+    pb.innerHTML = `<button class="prox-add-btn" onclick="abrirModalTarea()">+ Agregar próxima acción</button>`;
+  }
+}
+
+function abrirModalTarea() {
+  const ficha = fichaData?.ficha;
+  if (!ficha) return;
+  document.getElementById('tareaAccion').value = ficha.proxima_accion || '';
+  document.getElementById('tareaFecha').value  = ficha.fecha_proxima_accion
+    ? new Date(ficha.fecha_proxima_accion).toISOString().split('T')[0]
+    : new Date().toISOString().split('T')[0];
+  document.getElementById('tareaDesc').value = '';
+  ntOpenModal('tarea');
+}
+
+async function guardarTarea() {
+  const accion = document.getElementById('tareaAccion').value.trim();
+  const fecha  = document.getElementById('tareaFecha').value;
+  const desc   = document.getElementById('tareaDesc').value.trim();
+  if (!accion) { showToast('Escribí qué hay que hacer'); return; }
+  const btn = document.getElementById('btnGuardarTarea');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: fichaData.ficha.ficha_id,
+                  proxima_accion: accion, fecha_proxima_accion: fecha });
+    if (desc) {
+      await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
+                    autor: asesorActual, nota: `Tarea: ${accion}${desc ? ' — ' + desc : ''}` });
     }
+    ntCloseModal('tarea');
+    showToast('✓ Próxima acción guardada');
+    await recargarFicha();
+  } catch(err) { showToast('Error: ' + err.message); }
+  finally { btn.disabled = false; btn.textContent = 'Guardar tarea'; }
 }
 
-async function cerrarCasoNoticia() {
-    if (!fichaActual || !fichaActual.fichaId) return;
-    if (!confirm('¿Cerrar este caso? Dejará de aparecer como "Ficha abierta" en el buscador.')) return;
+function renderHistorial(seguimiento) {
+  const box = document.getElementById('historialBox');
+  if (!seguimiento || !seguimiento.length) {
+    box.innerHTML = '<div style="color:#888;font-size:13px;font-style:italic">Sin historial todavía.</div>';
+    return;
+  }
+  box.innerHTML = [...seguimiento].reverse().map(s => `
+    <div class="hist-item">
+      <div class="hist-fecha">${formatFechaCorta(s.fecha)}</div>
+      <div>
+        <div class="hist-accion">${s.autor || 'Sistema'}</div>
+        <div class="hist-res">${s.nota || '—'}</div>
+      </div>
+    </div>`).join('');
+}
 
-    const btn = document.getElementById('btnCerrarCaso');
-    btn.disabled    = true;
-    btn.textContent = 'Cerrando…';
+function renderReportes() {
+  const esther = noticias.filter(n => n.etapa_actual === 'Solicitar teléfonos Esther');
+  document.getElementById('repEstherCount').textContent = esther.length;
+  document.getElementById('repEstherList').innerHTML = esther.length
+    ? esther.map(n => `
+      <div class="rep-row">
+        <div class="rep-addr">${[n.calle, n.numero].filter(Boolean).join(' ')} · ${[n.escalera, n.piso, n.puerta].filter(Boolean).join(' ')}</div>
+        <div class="rep-meta">${n.asesor || ''} · ${n.zona || ''}</div>
+      </div>`).join('')
+    : '<div style="padding:14px 16px;font-size:13px;color:#888">Sin solicitudes pendientes.</div>';
+  const notas = noticias.filter(n => n.etapa_actual === 'Esperando Nota Simple');
+  document.getElementById('repNotaCount').textContent = notas.length;
+  document.getElementById('repNotaList').innerHTML = notas.length
+    ? notas.map(n => `
+      <div class="rep-row">
+        <div class="rep-addr">${[n.calle, n.numero].filter(Boolean).join(' ')} · ${[n.escalera, n.piso, n.puerta].filter(Boolean).join(' ')}</div>
+        <div class="rep-meta">${n.asesor || ''} · ${n.zona || ''}</div>
+      </div>`).join('')
+    : '<div style="padding:14px 16px;font-size:13px;color:#888">Sin notas simples solicitadas.</div>';
+}
 
-    try {
-        const res    = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            body:   JSON.stringify({ action: 'cerrar_ficha', fichaId: fichaActual.fichaId })
-        });
-        const result = await res.json();
-        if (!result.ok) throw new Error(result.error || 'Error cerrando caso');
+async function migrarSospechosos() {
+  const btn = document.getElementById('btnMigrar');
+  if (btn) { btn.disabled = true; btn.textContent = 'Importando…'; }
+  try {
+    const data = await ntApi({ action: 'migrar_sospechosos' });
+    showToast(`✓ ${data.creadas} ficha${data.creadas !== 1 ? 's' : ''} creada${data.creadas !== 1 ? 's' : ''}`);
+    await cargarNoticias();
+  } catch (err) {
+    showToast('Error: ' + err.message);
+    if (btn) { btn.disabled = false; btn.textContent = 'Importar Sospechosos existentes'; }
+  }
+}
 
-        showToast('✓ Caso cerrado');
-        // Reflejar el cierre en el índice ya cargado, sin recargarlo entero
-        const idx = noticiasIndice.findIndex(it => it.fichaId === fichaActual.fichaId);
-        if (idx !== -1) noticiasIndice[idx].fichaId = null;
-        cerrarDetalleNoticia();
-        filtrarNoticias();
-    } catch (err) {
-        showToast('Error: ' + err.message);
-        btn.disabled    = false;
-        btn.textContent = '✓ Cerrar caso';
+function volverLista() {
+  fichaData = null;
+  document.querySelectorAll('.noticia-card').forEach(c => c.classList.remove('card-sel'));
+  document.getElementById('screenFicha').classList.remove('ficha-abierta');
+  document.getElementById('fichaContent').style.display     = 'none';
+  document.getElementById('fichaPlaceholder').style.display = '';
+  if (!isDesktop()) {
+    document.getElementById('screenFicha').classList.remove('active');
+    document.getElementById('screenNoticias').classList.add('active');
+  }
+  cargarNoticias();
+}
+
+async function confirmarEtapa() {
+  const etapa = document.getElementById('selectEtapa').value;
+  const nota  = document.getElementById('notaEtapa').value.trim();
+  const btn   = document.getElementById('btnConfirmEtapa');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: fichaData.ficha.ficha_id, etapa_actual: etapa });
+    if (nota) {
+      await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
+                    autor: asesorActual, nota: `Etapa → ${etapa}${nota ? ': ' + nota : ''}` });
     }
+    ntCloseModal('avanzar');
+    document.getElementById('notaEtapa').value = '';
+    showToast('✓ Etapa actualizada');
+    await recargarFicha();
+  } catch(err) { showToast('Error: ' + err.message); }
+  finally { btn.disabled = false; btn.textContent = 'Confirmar'; }
 }
+
+function abrirLlamada(rowNum) {
+  candidatoActivo = fichaData.candidatos.find(c => c.row_num === rowNum);
+  document.getElementById('llamadaCandInfo').innerHTML =
+    `<strong>${candidatoActivo.nombre || '—'}</strong><br>${candidatoActivo.telefono || '—'} · <span style="font-size:11px;color:#888">${candidatoActivo.fuente || ''}</span>`;
+  document.getElementById('llamadaEstado').value = candidatoActivo.estado === 'Pendiente' ? 'Suena / sin respuesta' : candidatoActivo.estado;
+  ntOpenModal('llamada');
+}
+
+async function guardarLlamada() {
+  if (!candidatoActivo) return;
+  const btn = document.getElementById('btnGuardarLlamada');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    await ntApi({
+      action:               'registrar_seguimiento_candidato',
+      ficha_id:             fichaData.ficha.ficha_id,
+      telefono:             candidatoActivo.telefono,
+      row_num:              candidatoActivo.row_num,
+      asesor:               asesorActual,
+      tipo_accion:          'Llamada',
+      suena:                document.getElementById('llamadaSuena').value,
+      resultado:            document.getElementById('llamadaNotas').value.trim(),
+      estado_nuevo:         document.getElementById('llamadaEstado').value,
+      proxima_accion:       document.getElementById('llamadaProxAccion').value.trim(),
+      fecha_proxima_accion: document.getElementById('llamadaFechaProx').value
+    });
+    const resDesc = document.getElementById('llamadaNotas').value.trim();
+    if (resDesc) {
+      await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
+                    autor: asesorActual, nota: `Llamada a ${candidatoActivo.nombre}: ${resDesc}` });
+    }
+    ntCloseModal('llamada');
+    document.getElementById('llamadaNotas').value      = '';
+    document.getElementById('llamadaProxAccion').value = '';
+    showToast('✓ Llamada registrada');
+    await recargarFicha();
+  } catch(err) { showToast('Error: ' + err.message); }
+  finally { btn.disabled = false; btn.textContent = 'Guardar'; candidatoActivo = null; }
+}
+
+async function guardarCandidato() {
+  const nombre = document.getElementById('candNombre').value.trim();
+  const tel    = document.getElementById('candTelefono').value.trim();
+  if (!nombre || !tel) { showToast('Nombre y teléfono son obligatorios'); return; }
+  const btn = document.getElementById('btnGuardarCandidato');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    await ntApi({
+      action:           'agregar_candidato',
+      ficha_id:         fichaData.ficha.ficha_id,
+      apellido_buscado: document.getElementById('candApellido').value.trim(),
+      nombre, telefono: tel,
+      fuente:           document.getElementById('candFuente').value,
+      asesor:           asesorActual
+    });
+    ntCloseModal('candidato');
+    ['candApellido','candNombre','candTelefono'].forEach(id => document.getElementById(id).value = '');
+    showToast('✓ Candidato agregado');
+    await recargarFicha();
+  } catch(err) { showToast('Error: ' + err.message); }
+  finally { btn.disabled = false; btn.textContent = 'Agregar'; }
+}
+
+async function guardarNotaInglobably() {
+  const nota = document.getElementById('inglobablyNota').value.trim();
+  if (!nota) { showToast('Escribí algo antes de guardar'); return; }
+  const btn = document.getElementById('btnGuardarInglobably');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
+                  autor: asesorActual, nota });
+    ntCloseModal('notaInglobably');
+    document.getElementById('inglobablyNota').value = '';
+    showToast('✓ Nota guardada');
+    await recargarFicha();
+  } catch(err) { showToast('Error: ' + err.message); }
+  finally { btn.disabled = false; btn.textContent = 'Guardar'; }
+}
+
+async function guardarPropietario() {
+  const nombre = document.getElementById('propNombre').value.trim();
+  const nif    = document.getElementById('propNIF').value.trim().toUpperCase();
+  const tel    = document.getElementById('propTel').value.trim();
+  if (!nombre) { showToast('El nombre es obligatorio'); return; }
+  const btn = document.getElementById('btnGuardarProp');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    await ntApi({
+      action:   'agregar_candidato',
+      ficha_id: fichaData.ficha.ficha_id,
+      nombre, nif, telefono: tel,
+      fuente:   'Inglobably',
+      estado:   'Pendiente',
+      asesor:   asesorActual
+    });
+    ntCloseModal('addProp');
+    ['propNombre','propNIF','propTel'].forEach(id => document.getElementById(id).value = '');
+    showToast('✓ Propietario agregado');
+    await recargarFicha();
+  } catch(err) { showToast('Error: ' + err.message); }
+  finally { btn.disabled = false; btn.textContent = 'Agregar'; }
+}
+
+async function confirmarEsther() {
+  const nota  = document.getElementById('estherNotas').value.trim();
+  const ficha = fichaData.ficha;
+  const btn   = document.getElementById('btnConfirmEsther');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: ficha.ficha_id, etapa_actual: 'Solicitar teléfonos Esther' });
+    await ntApi({ action: 'agregar_seguimiento', fichaId: ficha.ficha_id, autor: asesorActual,
+                  nota: 'Solicitud enviada a Esther' + (nota ? ': ' + nota : '') });
+    ntCloseModal('esther');
+    document.getElementById('estherNotas').value = '';
+    showToast('✓ Solicitud a Esther registrada');
+    await recargarFicha();
+  } catch(err) { showToast('Error: ' + err.message); }
+  finally { btn.disabled = false; btn.textContent = 'Confirmar solicitud'; }
+}
+
+async function confirmarNotaSimple() {
+  const fecha = document.getElementById('notasimpleFecha').value;
+  const nota  = document.getElementById('notasimpleNotas').value.trim();
+  const btn   = document.getElementById('btnConfirmNota');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: fichaData.ficha.ficha_id, etapa_actual: 'Esperando Nota Simple' });
+    await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id, autor: asesorActual,
+                  nota: `Nota Simple solicitada ${fecha ? '(' + fecha + ')' : ''}${nota ? ': ' + nota : ''}` });
+    ntCloseModal('notasimple');
+    document.getElementById('notasimpleNotas').value = '';
+    showToast('✓ Nota Simple registrada');
+    await recargarFicha();
+  } catch(err) { showToast('Error: ' + err.message); }
+  finally { btn.disabled = false; btn.textContent = 'Registrar'; }
+}
+
+async function confirmarCerrar() {
+  const motivo = document.getElementById('cerrarMotivo').value;
+  const notas  = document.getElementById('cerrarNotas').value.trim();
+  if (!confirm('¿Cerrar esta noticia? No aparecerá más en tu lista.')) return;
+  const btn = document.getElementById('btnConfirmCerrar');
+  btn.disabled = true; btn.textContent = 'Cerrando…';
+  try {
+    await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: fichaData.ficha.ficha_id,
+                  estado_caso: 'Cerrada', etapa_actual: 'Cerrada' });
+    await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id, autor: asesorActual,
+                  nota: `Caso cerrado: ${motivo}${notas ? '. ' + notas : ''}` });
+    ntCloseModal('cerrar');
+    showToast('✓ Noticia cerrada');
+    volverLista();
+  } catch(err) { showToast('Error: ' + err.message); }
+  finally { btn.disabled = false; btn.textContent = 'Cerrar noticia'; }
+}
+
+async function recargarFicha() {
+  if (!fichaData) return;
+  const data = await ntApi({ action: 'get_ficha_noticia', ficha_id: fichaData.ficha.ficha_id });
+  fichaData = data;
+  renderFicha();
+}
+
+function buildAddr(f) {
+  const partes = [[f.calle, f.numero].filter(Boolean).join(' ')];
+  if (f.escalera) partes.push(f.escalera);
+  if (f.piso)     partes.push(f.piso);
+  if (f.puerta)   partes.push('Puerta ' + f.puerta);
+  return partes.filter(Boolean).join(' — ');
+}
+
+function formatFecha(f) {
+  if (!f) return '—';
+  const d = new Date(f);
+  if (isNaN(d)) return String(f).slice(0, 10);
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function formatFechaCorta(f) {
+  if (!f) return '—';
+  const d = new Date(f);
+  if (isNaN(d)) return String(f).slice(0, 5);
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+}
+
+function ntToggleSec(header) {
+  const body  = header.nextElementSibling;
+  const arrow = header.querySelector('span:last-child');
+  const open  = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  if (arrow) arrow.textContent = open ? '›' : '▾';
+}
+
+function ntOpenModal(name) {
+  if (name === 'esther' && fichaData) {
+    const f     = fichaData.ficha;
+    const props = (fichaData.candidatos || []).filter(c => c.fuente === 'Inglobably');
+    const addr  = `${[f.calle, f.numero].filter(Boolean).join(' ')} · ${[f.escalera, f.piso, f.puerta].filter(Boolean).join(' ')}`;
+    let info = `<strong>${addr}</strong>`;
+    if (props.length) {
+      info += '<div style="margin-top:8px;font-size:11px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.4px">Propietarios identificados</div>';
+      info += props.map(p =>
+        `<div style="margin-top:4px">${p.nombre}${p.nif ? ' — <strong>NIF: ' + p.nif + '</strong>' : ' — <span style="color:#b91c1c;font-size:11px">sin NIF</span>'}</div>`
+      ).join('');
+    } else {
+      info += '<br><span style="color:#b91c1c;font-size:12px">⚠️ Sin propietarios con NIF — agregá los datos de Inglobably primero</span>';
+    }
+    document.getElementById('estherInfo').innerHTML = info;
+  }
+  if (name === 'notasimple' && fichaData) {
+    const f     = fichaData.ficha;
+    const props = (fichaData.candidatos || []).filter(c => c.fuente === 'Inglobably');
+    const addr  = buildAddr(f);
+    const el    = document.getElementById('notasimplePropInfo');
+    if (props.length) {
+      el.innerHTML = '<strong>Datos para la solicitud en el Registro:</strong>' +
+        props.map(p =>
+          `<div style="margin-top:4px">· ${p.nombre}${p.nif ? ' — NIF: <strong>' + p.nif + '</strong>' : ' — <span style="color:#b91c1c">sin NIF</span>'}</div>`
+        ).join('') +
+        `<div style="margin-top:4px;color:#888">Dirección: ${addr}</div>`;
+    } else {
+      el.innerHTML = '⚠️ Sin propietarios identificados con NIF. El Registro pedirá nombre + NIF + dirección.';
+    }
+    el.style.display = '';
+  }
+  if (name === 'editarPiso' && fichaData) {
+    const f = fichaData.ficha;
+    document.getElementById('editPisoEstado').value    = f.estado_piso || '';
+    document.getElementById('editPisoSituacion').value = f.situacion   || '';
+    document.getElementById('editPisoProp').value      = f.propietario || '';
+    document.getElementById('editPisoFechaInquilino').value = f.fecha_contrato_inquilino
+      ? new Date(f.fecha_contrato_inquilino).toISOString().split('T')[0] : '';
+  }
+  document.getElementById('nt-modal-' + name).classList.add('open');
+}
+
+async function setEstadoPiso(estado) {
+  ntCloseModal('quickEstado');
+  try {
+    await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: fichaData.ficha.ficha_id, estado_piso: estado });
+    showToast('✓ ' + estado);
+    await recargarFicha();
+  } catch(err) { showToast('Error: ' + err.message); }
+}
+
+async function guardarInfoPiso() {
+  const btn = document.getElementById('btnGuardarPiso');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    await ntApi({
+      action:                   'actualizar_ficha_noticia',
+      ficha_id:                 fichaData.ficha.ficha_id,
+      estado_piso:              document.getElementById('editPisoEstado').value,
+      situacion:                document.getElementById('editPisoSituacion').value.trim(),
+      propietario:              document.getElementById('editPisoProp').value.trim(),
+      fecha_contrato_inquilino: document.getElementById('editPisoFechaInquilino').value
+    });
+    ntCloseModal('editarPiso');
+    showToast('✓ Información guardada');
+    await recargarFicha();
+  } catch(err) { showToast('Error: ' + err.message); }
+  finally { btn.disabled = false; btn.textContent = 'Guardar'; }
+}
+
+function ntCloseModal(name) {
+  document.getElementById('nt-modal-' + name).classList.remove('open');
+}
+
+document.querySelectorAll('.nt-modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+});
 
 // ─────────────────────────────────────────────
 //  START
@@ -3115,7 +3714,7 @@ async function eliminarPortal() {
 
 function abrirModalNuevoPortal() {
     ['portalNuevoCalle','portalNuevoNumero','portalNuevoPlantas',
-     'portalNuevoPuertas','portalNuevoEscaleras','portalNuevoObs']
+     'portalNuevoPuertas','portalNuevoEscaleras','portalNuevoObs','portalNuevoEtiquetas']
         .forEach(id => { document.getElementById(id).value = ''; });
     document.getElementById('portalesNuevoModal').style.display = 'flex';
 }
@@ -3132,16 +3731,19 @@ async function guardarNuevoPortal() {
         const res    = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
             body:   JSON.stringify({
-                action:         'crear_portal',
+                action:            'crear_portal',
                 asesor, zona, calle, numero,
-                plantas:        document.getElementById('portalNuevoPlantas').value  || '',
-                puertas_planta: document.getElementById('portalNuevoPuertas').value  || '',
-                escaleras:      document.getElementById('portalNuevoEscaleras').value || '',
-                observaciones:  document.getElementById('portalNuevoObs').value.trim()
+                plantas:           document.getElementById('portalNuevoPlantas').value    || '',
+                puertas_planta:    document.getElementById('portalNuevoPuertas').value    || '',
+                escaleras:         document.getElementById('portalNuevoEscaleras').value  || '',
+                etiquetas_puertas: document.getElementById('portalNuevoEtiquetas').value.trim(),
+                observaciones:     document.getElementById('portalNuevoObs').value.trim()
             })
         });
         const result = await res.json();
         if (!result.ok) throw new Error(result.error || 'Error');
+        const etiquetasPendientes = document.getElementById('portalNuevoEtiquetas').value.trim();
+        if (etiquetasPendientes) sessionStorage.setItem('pendingPortalEtiquetas', etiquetasPendientes);
         cerrarModal('portalesNuevoModal');
         showToast('Portal añadido ✓');
         portalesData = null;
@@ -3245,6 +3847,17 @@ async function guardarNota() {
 
 // ── Modal: editar buzones ────────────────────
 
+function inferEtiquetasFromBuzones(buzonesText, numPuertas) {
+    const map  = parseBuzonesText(buzonesText);
+    const keys = Object.keys(map);
+    if (!keys.length) return '';
+    const seen = [], seen_ = new Set();
+    keys.forEach(k => { const p = k.split(' ').pop(); if (!seen_.has(p)) { seen.push(p); seen_.add(p); } });
+    const defaults = PUERTAS.slice(0, numPuertas);
+    if (seen.length === defaults.length && seen.every((p, i) => p === defaults[i])) return '';
+    return seen.join(', ');
+}
+
 function abrirEditarBuzones() {
     const ficha = fichaPortalActual || {};
     const listEl = document.getElementById('buzonesEditList');
@@ -3262,7 +3875,16 @@ function abrirEditarBuzones() {
     const plantas = parseInt(ficha.plantas) || 0;
     const puertas = parseInt(ficha.puertas_planta) || 0;
     if (plantas && puertas) {
-        buzEditBuildList(plantas, puertas, ficha.buzones || '');
+        let etiquetasStr = ficha.etiquetas_puertas || '';
+        if (!etiquetasStr) {
+            if (ficha.buzones && ficha.buzones.trim()) {
+                etiquetasStr = inferEtiquetasFromBuzones(ficha.buzones, puertas);
+            } else {
+                etiquetasStr = sessionStorage.getItem('pendingPortalEtiquetas') || '';
+                if (etiquetasStr) sessionStorage.removeItem('pendingPortalEtiquetas');
+            }
+        }
+        buzEditBuildList(plantas, puertas, ficha.buzones || '', etiquetasStr);
         document.getElementById('portalesBuzonesModal').style.display = 'flex';
         return;
     }
@@ -3283,6 +3905,11 @@ function abrirEditarBuzones() {
                            style="width:100%;padding:10px 12px;border:2px solid #e2e8f0;border-radius:10px;font-size:16px;font-weight:700;text-align:center">
                 </div>
             </div>
+            <div style="margin-bottom:14px">
+                <label style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Nombres de puertas <span style="font-weight:400;text-transform:none;letter-spacing:0">(separados por coma — vacío: A, B, C…)</span></label>
+                <input type="text" id="buzEditEtiquetas" placeholder="Ej: Izda, Dcha  —  o: 1, 2, 3, 4…"
+                       style="width:100%;padding:10px 12px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box">
+            </div>
             <button onclick="buzEditGenerar()" style="width:100%;padding:13px;background:#0f172a;color:white;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer">Generar listado →</button>
         </div>`;
     document.getElementById('portalesBuzonesModal').style.display = 'flex';
@@ -3293,7 +3920,8 @@ function buzEditGenerar() {
     const plantas = parseInt(document.getElementById('buzEditPlantas')?.value) || 0;
     const puertas = parseInt(document.getElementById('buzEditPuertas')?.value) || 0;
     if (!plantas || !puertas) { showToast('Indica plantas y puertas/planta'); return; }
-    buzEditBuildList(plantas, puertas, '');
+    const etiquetasStr = (document.getElementById('buzEditEtiquetas')?.value || '').trim();
+    buzEditBuildList(plantas, puertas, '', etiquetasStr);
 }
 
 function buzEditBuildListFromDoors(doors, buzonesText) {
@@ -3343,7 +3971,7 @@ function buzEditBuildListFromDoors(doors, buzonesText) {
     setTimeout(() => (firstEmpty || listEl.querySelector('.buz-door-input'))?.focus(), 80);
 }
 
-function buzEditBuildList(plantas, puertas, buzonesText) {
+function buzEditBuildList(plantas, puertas, buzonesText, etiquetasStr) {
     const listEl = document.getElementById('buzonesEditList');
     listEl.innerHTML = '';
 
@@ -3352,7 +3980,20 @@ function buzEditBuildList(plantas, puertas, buzonesText) {
         const idx = pisoBase + i;
         return idx < PISOS.length ? PISOS[idx] : (i + 1) + 'º';
     }).reverse(); // piso más alto primero
-    const doorLabels = PUERTAS.slice(0, puertas);
+    const customLabels = etiquetasStr
+        ? etiquetasStr.split(/[,;]/).map(s => s.trim()).filter(Boolean)
+        : null;
+    let doorLabels;
+    if (customLabels && customLabels.length) {
+        if (customLabels.length >= puertas) {
+            doorLabels = customLabels.slice(0, puertas);
+        } else {
+            const extra = Array.from({ length: puertas - customLabels.length }, (_, i) => String(customLabels.length + i + 1));
+            doorLabels = [...customLabels, ...extra];
+        }
+    } else {
+        doorLabels = PUERTAS.slice(0, puertas);
+    }
     const existing   = parseBuzonesText(buzonesText);
 
     let seqId = 0;
