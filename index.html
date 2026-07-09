@@ -640,6 +640,7 @@
       <div class="ficha-date" id="fichaDate">—</div>
     </div>
     <div class="nt-ficha-meta" id="fichaMeta"></div>
+    <div id="fichaIdRef" style="font-size:10px;color:#94a3b8;margin:2px 0 4px;cursor:pointer" onclick="copiarFichaId()" title="Toca para copiar el ID — útil para importar candidatos al sheet"></div>
     <div class="etapa-row">
       <span class="nt-badge" id="fichaEtapaBadge">—</span>
       <button class="btn-avanzar" onclick="ntOpenModal('avanzar')">Avanzar etapa</button>
@@ -830,6 +831,23 @@
     <div class="nt-form-group">
       <label>NIF</label>
       <input type="text" id="propNIF" placeholder="12345678A" style="text-transform:uppercase">
+    </div>
+    <div class="nt-form-group">
+      <label>Parentesco / Relación</label>
+      <select id="propParentesco">
+        <option value="">— Sin definir —</option>
+        <option value="Propietario">Propietario</option>
+        <option value="Cónyuge">Cónyuge</option>
+        <option value="Hijo/a">Hijo/a</option>
+        <option value="Padre / Madre">Padre / Madre</option>
+        <option value="Hermano/a">Hermano/a</option>
+        <option value="Heredero/a">Heredero/a</option>
+        <option value="Otro">Otro</option>
+      </select>
+    </div>
+    <div class="nt-form-group">
+      <label>Fecha de nacimiento</label>
+      <input type="date" id="propFechaNac">
     </div>
     <div class="nt-form-group">
       <label>Teléfono (si ya se conoce)</label>
