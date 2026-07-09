@@ -2149,6 +2149,31 @@ async function guardarPropietario() {
   finally { btn.disabled = false; btn.textContent = 'Agregar'; }
 }
 
+async function ejecutarImportABC() {
+  const url = document.getElementById('importarAbcUrl').value.trim();
+  if (!url) { showToast('Pegá la URL del sheet'); return; }
+  const btn = document.getElementById('btnImportarABC');
+  const res = document.getElementById('importarAbcResult');
+  btn.disabled = true; btn.textContent = 'Importando…';
+  res.style.display = 'none';
+  try {
+    const data = await ntApi({
+      action:    'importar_candidatos_abc',
+      ficha_id:  fichaData.ficha.ficha_id,
+      sheet_url: url,
+      asesor:    asesorActual
+    });
+    res.style.cssText = 'display:block;background:#dcfce7;color:#166534;padding:10px;border-radius:8px;font-size:13px;margin-top:4px';
+    res.innerHTML = `✓ <strong>${data.importados}</strong> candidatos importados${data.omitidos ? ` · ${data.omitidos} omitidos (sin teléfono o ya existían)` : ''}`;
+    showToast(`✓ ${data.importados} candidatos importados`);
+    await recargarFicha();
+  } catch(err) {
+    res.style.cssText = 'display:block;background:#fee2e2;color:#b91c1c;padding:10px;border-radius:8px;font-size:13px;margin-top:4px';
+    res.textContent = err.message;
+  }
+  finally { btn.disabled = false; btn.textContent = 'Importar'; }
+}
+
 async function confirmarEsther() {
   const nota  = document.getElementById('estherNotas').value.trim();
   const ficha = fichaData.ficha;
