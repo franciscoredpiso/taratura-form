@@ -778,6 +778,7 @@
     <div class="nt-form-group" id="llamadaResultadoGroup">
       <label>Resultado</label>
       <select id="llamadaEstado">
+        <option value="Contestó">Contestó</option>
         <option value="Suena / sin respuesta">Suena / sin respuesta</option>
         <option value="Suena / no relacionado">Suena / no relacionado</option>
         <option value="Descartado">Descartado</option>
@@ -792,12 +793,12 @@
       <div class="nt-form-group">
         <label>Próxima acción</label>
         <div style="display:flex;gap:6px;align-items:center">
-          <select id="llamadaTipoAccion" style="flex:0 0 auto;font-size:13px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#334155">
+          <select id="llamadaTipoAccion" onchange="onTipoAccionChange()" style="flex:0 0 auto;font-size:13px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#334155">
             <option value="Llamada">📞 Llamada</option>
             <option value="Visita">🚶 Visita</option>
             <option value="Gestión">📋 Gestión</option>
           </select>
-          <input type="text" id="llamadaProxAccion" placeholder="Detalle…" style="flex:1">
+          <input type="text" id="llamadaProxAccion" placeholder="Reintentar, buscar otro número…" style="flex:1">
         </div>
       </div>
       <div class="nt-form-group">
