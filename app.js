@@ -1552,6 +1552,7 @@ function tiempoDesde(fechaStr) {
   const d = new Date(fechaStr);
   if (isNaN(d)) return null;
   const diff = Date.now() - d.getTime();
+  if (diff < 0) return null;
   const dias  = Math.floor(diff / 86400000);
   if (dias === 0) return 'hoy';
   if (dias === 1) return 'ayer';
@@ -1618,8 +1619,9 @@ function noticiasFiltradas() {
 }
 
 function renderCard(n, i) {
-  const dir    = [n.calle, n.numero].filter(Boolean).join(' ');
-  const ubi    = [n.escalera, n.piso, n.puerta ? `Puerta ${n.puerta}` : ''].filter(Boolean).join(' · ');
+  const dir    = [limpiaTexto(n.calle), limpiaTexto(n.numero)].filter(Boolean).join(' ');
+  const ubi    = [limpiaTexto(n.escalera), limpiaTexto(n.piso), n.puerta ? `Puerta ${limpiaTexto(n.puerta)}` : ''].filter(Boolean).join(' · ');
+  const prox   = noEsTexto(n.proxima_accion) ? formatFecha(n.proxima_accion) : (n.proxima_accion || '');
   const cuando = tiempoDesde(n.fecha_proxima_accion);
   return `
   <div class="noticia-card" id="nt-card-${i}" onclick="abrirFichaNoticia(${i})">
@@ -1632,7 +1634,7 @@ function renderCard(n, i) {
     </div>
     <div class="card-bottom">
       <span class="card-last">${n.estado_piso || '—'}</span>
-      <span class="card-prox">${n.proxima_accion ? '→ ' + n.proxima_accion.slice(0,28) + (n.proxima_accion.length > 28 ? '…' : '') + (cuando ? ' · ' + cuando : '') : ''}</span>
+      <span class="card-prox">${prox ? '→ ' + prox.slice(0,28) + (prox.length > 28 ? '…' : '') + (cuando ? ' · ' + cuando : '') : ''}</span>
     </div>
   </div>`;
 }
@@ -1682,7 +1684,7 @@ function renderLista() {
   if (agrupadoActivo) {
     const grupos = {};
     lista.forEach(({ n, i }) => {
-      const key = [n.calle, n.numero].filter(Boolean).join(' ') || 'Sin dirección';
+      const key = [limpiaTexto(n.calle), limpiaTexto(n.numero)].filter(Boolean).join(' ') || 'Sin dirección';
       if (!grupos[key]) grupos[key] = [];
       grupos[key].push({ n, i });
     });
@@ -1710,7 +1712,7 @@ async function abrirFichaNoticia(idx) {
   document.getElementById('screenFicha').classList.add('ficha-abierta');
   document.getElementById('fichaPlaceholder').style.display = 'none';
   document.getElementById('fichaContent').style.display     = '';
-  document.getElementById('fichaAddr').textContent = buildAddr(n);
+  setFichaAddr(document.getElementById('fichaAddr'), n);
   document.getElementById('fichaDate').textContent  = formatFecha(n.fecha_deteccion);
   document.getElementById('fichaMeta').innerHTML    = `<span>${n.zona || ''}</span>`;
   document.getElementById('fichaEtapaBadge').textContent = n.etapa_actual || 'Detectada';
@@ -1944,7 +1946,7 @@ function renderCandidatosPanel() {
       <div class="cand-top">
         <div>
           <div class="cand-nombre">${c.nombre || '—'}</div>
-          <div class="cand-tel">${c.telefono || '—'}</div>
+          <div class="cand-tel">${c.telefono || '—'}${c.parentesco ? ' · <em style="color:#94a3b8">' + c.parentesco + '</em>' : ''}</div>
         </div>
         <span class="nt-fuente ${fuenteClass[c.fuente] || 'f-manual'}">${c.fuente || '—'}</span>
       </div>
@@ -2103,11 +2105,12 @@ function onSuenaChange() {
 function abrirLlamada(rowNum) {
   candidatoActivo = fichaData.candidatos.find(c => c.row_num === rowNum);
   document.getElementById('llamadaCandInfo').innerHTML =
-    `<strong>${candidatoActivo.nombre || '—'}</strong><br>${candidatoActivo.telefono || '—'} · <span style="font-size:11px;color:#888">${candidatoActivo.fuente || ''}</span>`;
+    `<strong>${candidatoActivo.nombre || '—'}</strong><br>${candidatoActivo.telefono || '—'} · <span style="font-size:11px;color:#888">${[candidatoActivo.fuente, candidatoActivo.parentesco].filter(Boolean).join(' · ')}</span>`;
   document.getElementById('llamadaSuena').value    = 'Si';
   document.getElementById('llamadaEstado').value   = candidatoActivo.estado === 'Pendiente' ? 'Suena / sin respuesta' : (candidatoActivo.estado || 'Suena / sin respuesta');
-  document.getElementById('llamadaNotas').value    = '';
-  document.getElementById('llamadaProxAccion').value = candidatoActivo.proxima_accion || '';
+  document.getElementById('llamadaNotas').value        = '';
+  document.getElementById('llamadaTipoAccion').value   = 'Llamada';
+  document.getElementById('llamadaProxAccion').value   = candidatoActivo.proxima_accion || '';
   const fp = candidatoActivo.fecha_proxima_accion;
   document.getElementById('llamadaFechaProx').value = fp
     ? (String(fp).includes('T') ? String(fp).split('T')[0] : String(fp).slice(0,10))
@@ -2128,11 +2131,11 @@ async function guardarLlamada() {
     fechaProx   = '';
   } else if (suena === 'No disponible') {
     estadoNuevo = candidatoActivo.estado || 'Pendiente';
-    proxAccion  = document.getElementById('llamadaProxAccion').value.trim();
+    proxAccion  = buildProxAccion();
     fechaProx   = document.getElementById('llamadaFechaProx').value;
   } else {
     estadoNuevo = document.getElementById('llamadaEstado').value;
-    proxAccion  = document.getElementById('llamadaProxAccion').value.trim();
+    proxAccion  = buildProxAccion();
     fechaProx   = document.getElementById('llamadaFechaProx').value;
   }
 
@@ -2173,15 +2176,15 @@ async function guardarCandidato() {
   btn.disabled = true; btn.textContent = 'Guardando…';
   try {
     await ntApi({
-      action:           'agregar_candidato',
-      ficha_id:         fichaData.ficha.ficha_id,
-      apellido_buscado: document.getElementById('candApellido').value.trim(),
+      action:      'agregar_candidato',
+      ficha_id:    fichaData.ficha.ficha_id,
       nombre, telefono: tel,
-      fuente:           document.getElementById('candFuente').value,
-      asesor:           asesorActual
+      parentesco:  document.getElementById('candVinculo').value,
+      fuente:      document.getElementById('candFuente').value,
+      asesor:      asesorActual
     });
     ntCloseModal('candidato');
-    ['candApellido','candNombre','candTelefono'].forEach(id => document.getElementById(id).value = '');
+    ['candNombre','candTelefono'].forEach(id => document.getElementById(id).value = '');
     showToast('✓ Candidato agregado');
     await recargarFicha();
   } catch(err) { showToast('Error: ' + err.message); }
@@ -2315,12 +2318,41 @@ async function recargarFicha() {
   renderFicha();
 }
 
+function buildProxAccion() {
+  const tipo  = document.getElementById('llamadaTipoAccion').value;
+  const texto = document.getElementById('llamadaProxAccion').value.trim();
+  if (!texto) return '';
+  return tipo + ': ' + texto;
+}
+
+function noEsTexto(s) {
+  // Detecta ISO dates u otros valores claramente no-textuales
+  return /^\d{4}-\d{2}-\d{2}T/.test(String(s || ''));
+}
+function limpiaTexto(s) {
+  return noEsTexto(s) ? '' : String(s || '').trim();
+}
+
 function buildAddr(f) {
-  const partes = [[f.calle, f.numero].filter(Boolean).join(' ')];
-  if (f.escalera) partes.push(f.escalera);
-  if (f.piso)     partes.push(f.piso);
-  if (f.puerta)   partes.push('Puerta ' + f.puerta);
+  const calle  = limpiaTexto(f.calle);
+  const numero = limpiaTexto(f.numero);
+  const partes = [[calle, numero].filter(Boolean).join(' ')];
+  if (f.escalera && !noEsTexto(f.escalera)) partes.push(f.escalera);
+  if (f.piso     && !noEsTexto(f.piso))     partes.push(f.piso);
+  if (f.puerta   && !noEsTexto(f.puerta))   partes.push('Puerta ' + f.puerta);
   return partes.filter(Boolean).join(' — ');
+}
+
+function setFichaAddr(el, f) {
+  const calle  = limpiaTexto(f.calle);
+  const numero = limpiaTexto(f.numero);
+  const esc    = limpiaTexto(f.escalera);
+  const piso   = limpiaTexto(f.piso);
+  const puerta = limpiaTexto(f.puerta);
+  const linea1 = [calle, numero].filter(Boolean).join(' ') || '—';
+  const linea2 = [esc, piso, puerta ? 'Pta. ' + puerta : ''].filter(Boolean).join(' · ');
+  el.innerHTML = `<strong style="font-size:17px;font-weight:800">${linea1}</strong>${
+    linea2 ? `<br><span style="font-size:13px;color:#94a3b8">${linea2}</span>` : ''}`;
 }
 
 function formatFecha(f) {
