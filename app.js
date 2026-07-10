@@ -1612,10 +1612,23 @@ function toggleAgrupar() {
 }
 
 function noticiasFiltradas() {
-  if (!filtroTexto) return noticias.map((n, i) => ({ n, i }));
-  return noticias.map((n, i) => ({ n, i })).filter(({ n }) => {
-    const texto = [n.calle, n.numero, n.escalera, n.piso, n.puerta, n.zona].join(' ').toLowerCase();
-    return texto.includes(filtroTexto);
+  let lista = noticias.map((n, i) => ({ n, i }));
+  if (filtroTexto) {
+    lista = lista.filter(({ n }) => {
+      const texto = [n.calle, n.numero, n.escalera, n.piso, n.puerta, n.zona].join(' ').toLowerCase();
+      return texto.includes(filtroTexto);
+    });
+  }
+  const hoy = new Date().toISOString().split('T')[0];
+  return lista.sort((a, b) => {
+    const fa = a.n.fecha_proxima_accion ? String(a.n.fecha_proxima_accion).slice(0, 10) : '';
+    const fb = b.n.fecha_proxima_accion ? String(b.n.fecha_proxima_accion).slice(0, 10) : '';
+    const aparcadaA = fa && fa >= hoy;
+    const aparcadaB = fb && fb >= hoy;
+    if (aparcadaA !== aparcadaB) return aparcadaA ? 1 : -1;
+    const dirA = [limpiaTexto(a.n.calle), limpiaTexto(a.n.numero)].filter(Boolean).join(' ');
+    const dirB = [limpiaTexto(b.n.calle), limpiaTexto(b.n.numero)].filter(Boolean).join(' ');
+    return dirA.localeCompare(dirB, 'es');
   });
 }
 
@@ -1840,7 +1853,7 @@ function renderPanelRapido(ficha, candidatos, seguimiento) {
       <div class="ui-label">Último intento</div>
       ${ultimoSeg ? `
         <div class="ui-row">
-          <div class="ui-desc">${ultimoSeg.nota ? ultimoSeg.nota.slice(0,50) : 'Nota sin descripción'}</div>
+          <div class="ui-desc">${ultimoSeg.nota || 'Nota sin descripción'}</div>
           ${hace ? `<span class="ui-hace">${hace}</span>` : ''}
         </div>
         <div class="ui-sub">${formatFecha(ultimoSeg.fecha)} · ${ultimoSeg.autor || ''}</div>
