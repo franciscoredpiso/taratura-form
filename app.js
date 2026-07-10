@@ -2316,8 +2316,12 @@ function buildAddr(f) {
 function formatFecha(f) {
   if (!f) return '—';
   const d = new Date(f);
-  if (isNaN(d)) return String(f).slice(0, 10);
-  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  if (!isNaN(d)) return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  // Fallback para strings tipo "7/7/2026, 10:30:00" (toLocaleString de Apps Script)
+  const dateOnly = String(f).split(',')[0].trim();
+  const parts = dateOnly.split('/');
+  if (parts.length === 3) return parts[0].padStart(2,'0') + '/' + parts[1].padStart(2,'0') + '/' + parts[2];
+  return dateOnly.slice(0, 10);
 }
 
 function formatFechaCorta(f) {
@@ -3294,7 +3298,7 @@ function renderPortalesList() {
     }
 
     let html = '';
-    for (const calle of Object.keys(byCalle).sort()) {
+    for (const calle of Object.keys(byCalle).sort((a, b) => a.localeCompare(b, 'es'))) {
         const portales = byCalle[calle].sort((a, b) =>
             String(a.numero || '').localeCompare(String(b.numero || ''), 'es', { numeric: true })
         );
