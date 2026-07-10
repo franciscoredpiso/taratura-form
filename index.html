@@ -767,18 +767,17 @@
     <div class="nt-modal-info" id="llamadaCandInfo"></div>
     <div class="nt-form-group">
       <label>¿Suena el número?</label>
-      <select id="llamadaSuena">
-        <option value="Sí">Sí, suena</option>
-        <option value="No">No, no existe / apagado</option>
-        <option value="Sin probar">Sin probar aún</option>
+      <select id="llamadaSuena" onchange="onSuenaChange()">
+        <option value="Si">Sí, suena</option>
+        <option value="No disponible">No se encuentra disponible</option>
+        <option value="No existe">No existe el número</option>
       </select>
     </div>
-    <div class="nt-form-group">
+    <div class="nt-form-group" id="llamadaResultadoGroup">
       <label>Resultado</label>
       <select id="llamadaEstado">
         <option value="Suena / sin respuesta">Suena / sin respuesta</option>
         <option value="Suena / no relacionado">Suena / no relacionado</option>
-        <option value="No existe">No existe el número</option>
         <option value="Descartado">Descartado</option>
         <option value="Confirmado propietario">Confirmado propietario ✓</option>
       </select>
@@ -787,13 +786,15 @@
       <label>Notas</label>
       <textarea id="llamadaNotas" placeholder="Qué pasó en la llamada…"></textarea>
     </div>
-    <div class="nt-form-group">
-      <label>Próxima acción</label>
-      <input type="text" id="llamadaProxAccion" placeholder="Reintentar, buscar otro número…">
-    </div>
-    <div class="nt-form-group">
-      <label>Fecha próxima acción</label>
-      <input type="date" id="llamadaFechaProx">
+    <div id="llamadaProxGroup">
+      <div class="nt-form-group">
+        <label>Próxima acción</label>
+        <input type="text" id="llamadaProxAccion" placeholder="Reintentar, buscar otro número…">
+      </div>
+      <div class="nt-form-group">
+        <label>Fecha próxima acción</label>
+        <input type="date" id="llamadaFechaProx">
+      </div>
     </div>
     <div class="nt-modal-actions">
       <button class="nt-btn-cancel" onclick="ntCloseModal('llamada')">Cancelar</button>
