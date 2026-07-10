@@ -2109,8 +2109,9 @@ function abrirLlamada(rowNum) {
   document.getElementById('llamadaSuena').value    = 'Si';
   document.getElementById('llamadaEstado').value   = candidatoActivo.estado === 'Pendiente' ? 'Suena / sin respuesta' : (candidatoActivo.estado || 'Suena / sin respuesta');
   document.getElementById('llamadaNotas').value        = '';
-  document.getElementById('llamadaTipoAccion').value   = 'Llamada';
-  document.getElementById('llamadaProxAccion').value   = candidatoActivo.proxima_accion || '';
+  document.getElementById('llamadaTipoAccion').value       = 'Llamada';
+  document.getElementById('llamadaProxAccion').placeholder = TIPO_PLACEHOLDER['Llamada'];
+  document.getElementById('llamadaProxAccion').value       = candidatoActivo.proxima_accion || '';
   const fp = candidatoActivo.fecha_proxima_accion;
   document.getElementById('llamadaFechaProx').value = fp
     ? (String(fp).includes('T') ? String(fp).split('T')[0] : String(fp).slice(0,10))
@@ -2316,6 +2317,17 @@ async function recargarFicha() {
   const data = await ntApi({ action: 'get_ficha_noticia', ficha_id: fichaData.ficha.ficha_id });
   fichaData = data;
   renderFicha();
+}
+
+const TIPO_PLACEHOLDER = {
+  'Llamada': 'Reintentar, buscar otro número…',
+  'Visita':  'Al portal, al piso, a la administración…',
+  'Gestión': 'Nota simple, contactar Esther…'
+};
+
+function onTipoAccionChange() {
+  const tipo = document.getElementById('llamadaTipoAccion').value;
+  document.getElementById('llamadaProxAccion').placeholder = TIPO_PLACEHOLDER[tipo] || 'Detalle…';
 }
 
 function buildProxAccion() {
