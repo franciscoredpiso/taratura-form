@@ -2084,24 +2084,48 @@ async function confirmarEtapa() {
   finally { btn.disabled = false; btn.textContent = 'Confirmar'; }
 }
 
+function onSuenaChange() {
+  const v = document.getElementById('llamadaSuena').value;
+  document.getElementById('llamadaResultadoGroup').style.display = (v === 'Si') ? '' : 'none';
+  document.getElementById('llamadaProxGroup').style.display      = (v === 'No existe') ? 'none' : '';
+}
+
 function abrirLlamada(rowNum) {
   candidatoActivo = fichaData.candidatos.find(c => c.row_num === rowNum);
   document.getElementById('llamadaCandInfo').innerHTML =
     `<strong>${candidatoActivo.nombre || '—'}</strong><br>${candidatoActivo.telefono || '—'} · <span style="font-size:11px;color:#888">${candidatoActivo.fuente || ''}</span>`;
+  document.getElementById('llamadaSuena').value    = 'Si';
   document.getElementById('llamadaEstado').value   = candidatoActivo.estado === 'Pendiente' ? 'Suena / sin respuesta' : (candidatoActivo.estado || 'Suena / sin respuesta');
-  document.getElementById('llamadaSuena').value    = candidatoActivo.suena && candidatoActivo.suena !== 'Sin probar' ? candidatoActivo.suena : 'Sí';
   document.getElementById('llamadaNotas').value    = '';
   document.getElementById('llamadaProxAccion').value = candidatoActivo.proxima_accion || '';
   const fp = candidatoActivo.fecha_proxima_accion;
   document.getElementById('llamadaFechaProx').value = fp
     ? (String(fp).includes('T') ? String(fp).split('T')[0] : String(fp).slice(0,10))
     : new Date().toISOString().split('T')[0];
+  onSuenaChange();
   ntOpenModal('llamada');
 }
 
 async function guardarLlamada() {
   if (!candidatoActivo) return;
-  const btn = document.getElementById('btnGuardarLlamada');
+  const btn   = document.getElementById('btnGuardarLlamada');
+  const suena = document.getElementById('llamadaSuena').value;
+
+  let estadoNuevo, proxAccion, fechaProx;
+  if (suena === 'No existe') {
+    estadoNuevo = 'Descartado';
+    proxAccion  = '';
+    fechaProx   = '';
+  } else if (suena === 'No disponible') {
+    estadoNuevo = candidatoActivo.estado || 'Pendiente';
+    proxAccion  = document.getElementById('llamadaProxAccion').value.trim();
+    fechaProx   = document.getElementById('llamadaFechaProx').value;
+  } else {
+    estadoNuevo = document.getElementById('llamadaEstado').value;
+    proxAccion  = document.getElementById('llamadaProxAccion').value.trim();
+    fechaProx   = document.getElementById('llamadaFechaProx').value;
+  }
+
   btn.disabled = true; btn.textContent = 'Guardando…';
   try {
     await ntApi({
@@ -2111,11 +2135,11 @@ async function guardarLlamada() {
       row_num:              candidatoActivo.row_num,
       asesor:               asesorActual,
       tipo_accion:          'Llamada',
-      suena:                document.getElementById('llamadaSuena').value,
+      suena,
       resultado:            document.getElementById('llamadaNotas').value.trim(),
-      estado_nuevo:         document.getElementById('llamadaEstado').value,
-      proxima_accion:       document.getElementById('llamadaProxAccion').value.trim(),
-      fecha_proxima_accion: document.getElementById('llamadaFechaProx').value
+      estado_nuevo:         estadoNuevo,
+      proxima_accion:       proxAccion,
+      fecha_proxima_accion: fechaProx
     });
     const resDesc = document.getElementById('llamadaNotas').value.trim();
     if (resDesc) {
