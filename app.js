@@ -376,7 +376,8 @@ function init() {
 
     loadCallesIndex();
 
-    showScreen('home');
+    const lastScreen = localStorage.getItem('tz_lastScreen') || 'home';
+    showScreen((asesor && zona) ? lastScreen : 'home');
 }
 
 // ─────────────────────────────────────────────
@@ -1797,6 +1798,13 @@ function renderPanelRapido(ficha, candidatos, seguimiento) {
            ${ficha.situacion ? `<div class="pr-item-sub">${ficha.situacion}</div>` : ''}`
         : `<div class="pr-item-placeholder">Toca para establecer</div>`}
     </div>`);
+  if (ficha.nombre_buzon) {
+    parts.push(`
+      <div class="pr-item">
+        <div class="pr-item-label">Nombre en buzón</div>
+        <div class="pr-item-val" style="font-size:15px;font-weight:700">${ficha.nombre_buzon}</div>
+      </div>`);
+  }
   const ingProps  = (candidatos || []).filter(c => c.fuente === 'Inglobably');
   const firstProp = ingProps[0];
   const propLabel = ingProps.length ? `Propietarios (${ingProps.length}) ›` : 'Propietarios ›';
@@ -2506,6 +2514,8 @@ function showScreen(screen) {
     tabTaratura.classList.remove('active');
     tabNoticias.classList.remove('active');
     tabBuzones.classList.remove('active');
+
+    localStorage.setItem('tz_lastScreen', screen);
 
     if (screen === 'home') {
         home.style.display = 'flex';
