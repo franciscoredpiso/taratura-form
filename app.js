@@ -1763,6 +1763,7 @@ function renderFicha() {
   document.getElementById('selectEtapa').value           = ficha.etapa_actual || 'Detectada';
   renderPipeline(ficha.etapa_actual);
   renderPanelRapido(ficha, candidatos, seguimiento);
+  renderDatosTaratura(ficha);
   renderInglobably(ficha, seguimiento);
   const ingPropsAll = (candidatos || []).filter(c => c.fuente === 'Inglobably');
   const llamarAll   = (candidatos || []).filter(c => c.fuente !== 'Inglobably');
@@ -1870,6 +1871,57 @@ function renderPanelRapido(ficha, candidatos, seguimiento) {
       </div>`);
   }
   grid.innerHTML = parts.join('');
+}
+
+function renderDatosTaratura(ficha) {
+  const sec = document.getElementById('secTaratura');
+  const box = document.getElementById('datosTaraturaBox');
+  const partes = [];
+
+  // Contacto registrado en esa puerta (si el vínculo es relevante)
+  const vincIgnorar = ['sospechoso (parece vacío)', 'noticia', 'sin vínculo', ''];
+  const vinc = (ficha.reg_vinculo || '').trim();
+  if (vinc && !vincIgnorar.includes(vinc.toLowerCase())) {
+    partes.push(`
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Contacto registrado</div>
+        <div style="font-weight:600">${ficha.reg_nombre || '—'}</div>
+        <div style="font-size:12px;color:#64748b">${vinc}</div>
+        ${ficha.reg_telefono ? `<div style="font-size:13px;margin-top:2px">${ficha.reg_telefono}</div>` : ''}
+      </div>`);
+  }
+
+  // Administrador del edificio
+  if (ficha.reg_admin_empresa || ficha.reg_admin_tel) {
+    partes.push(`
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Administrador del edificio</div>
+        ${ficha.reg_admin_empresa ? `<div style="font-weight:600">${ficha.reg_admin_empresa}</div>` : ''}
+        ${ficha.reg_admin_tel    ? `<div style="font-size:13px">${ficha.reg_admin_tel}</div>` : ''}
+      </div>`);
+  }
+
+  // Notas y observaciones
+  const notas = [ficha.reg_notas_ed, ficha.reg_observ, ficha.reg_info_adic].filter(Boolean);
+  if (notas.length) {
+    partes.push(`
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Notas</div>
+        ${notas.map(n => `<div style="font-size:13px;color:#334155;margin-bottom:3px">${n}</div>`).join('')}
+      </div>`);
+  }
+
+  // Carta en buzón
+  if (ficha.reg_carta) {
+    partes.push(`<div style="font-size:12px;color:#92400e;background:#fef3c7;padding:6px 10px;border-radius:6px;margin-bottom:8px">Carta en buzón: ${ficha.reg_carta}</div>`);
+  }
+
+  if (partes.length) {
+    box.innerHTML = partes.join('');
+    sec.style.display = '';
+  } else {
+    sec.style.display = 'none';
+  }
 }
 
 function renderInglobably(ficha, seguimiento) {
@@ -2240,8 +2292,9 @@ function abrirAgregarPropietario() {
 }
 
 function abrirEditarPropietario(rowNum) {
-  const p = fichaData.candidatos.find(c => c.row_num === rowNum);
-  if (!p) return;
+  if (!fichaData || !fichaData.candidatos) { showToast('Error: ficha no cargada'); return; }
+  const p = fichaData.candidatos.find(c => String(c.row_num) === String(rowNum));
+  if (!p) { showToast('No se encontró el propietario'); return; }
   document.getElementById('propRowNum').value        = rowNum;
   document.getElementById('addPropTitle').textContent = 'Editar propietario';
   document.getElementById('btnGuardarProp').textContent = 'Guardar cambios';
@@ -2264,14 +2317,16 @@ async function guardarPropietario() {
   const tel              = document.getElementById('propTel').value.trim();
   const rowNum           = document.getElementById('propRowNum').value;
   if (!nombre) { showToast('El nombre es obligatorio'); return; }
+  const esEdicion = !!rowNum;
   const btn = document.getElementById('btnGuardarProp');
+  const textoOriginal = btn.textContent;
   btn.disabled = true; btn.textContent = 'Guardando…';
   try {
-    if (rowNum) {
+    if (esEdicion) {
       await ntApi({
-        action: 'actualizar_candidato',
-        ficha_id: fichaData.ficha.ficha_id,
-        row_num: Number(rowNum),
+        action:    'actualizar_candidato',
+        ficha_id:  fichaData.ficha.ficha_id,
+        row_num:   Number(rowNum),
         nombre, nif, parentesco, fecha_nacimiento, telefono: tel
       });
     } else {
@@ -2283,15 +2338,27 @@ async function guardarPropietario() {
         estado:   'Pendiente',
         asesor:   asesorActual
       });
+      // Si tiene teléfono, también lo agrega como candidato a llamar
+      if (tel) {
+        await ntApi({
+          action:     'agregar_candidato',
+          ficha_id:   fichaData.ficha.ficha_id,
+          nombre, telefono: tel,
+          parentesco: 'Propietario probable',
+          fuente:     'Manual',
+          estado:     'Pendiente',
+          asesor:     asesorActual
+        });
+      }
     }
     ntCloseModal('addProp');
     ['propNombre','propNIF','propTel','propFechaNac'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('propParentesco').value = '';
     document.getElementById('propRowNum').value     = '';
-    showToast('✓ Propietario agregado');
+    showToast(esEdicion ? '✓ Propietario actualizado' : '✓ Propietario agregado');
     await recargarFicha();
   } catch(err) { showToast('Error: ' + err.message); }
-  finally { btn.disabled = false; btn.textContent = 'Agregar'; }
+  finally { btn.disabled = false; btn.textContent = textoOriginal; }
 }
 
 async function ejecutarImportABC() {
