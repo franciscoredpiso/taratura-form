@@ -1612,10 +1612,23 @@ function toggleAgrupar() {
 }
 
 function noticiasFiltradas() {
-  if (!filtroTexto) return noticias.map((n, i) => ({ n, i }));
-  return noticias.map((n, i) => ({ n, i })).filter(({ n }) => {
-    const texto = [n.calle, n.numero, n.escalera, n.piso, n.puerta, n.zona].join(' ').toLowerCase();
-    return texto.includes(filtroTexto);
+  let lista = noticias.map((n, i) => ({ n, i }));
+  if (filtroTexto) {
+    lista = lista.filter(({ n }) => {
+      const texto = [n.calle, n.numero, n.escalera, n.piso, n.puerta, n.zona].join(' ').toLowerCase();
+      return texto.includes(filtroTexto);
+    });
+  }
+  const hoy = new Date().toISOString().split('T')[0];
+  return lista.sort((a, b) => {
+    const fa = a.n.fecha_proxima_accion ? String(a.n.fecha_proxima_accion).slice(0, 10) : '';
+    const fb = b.n.fecha_proxima_accion ? String(b.n.fecha_proxima_accion).slice(0, 10) : '';
+    const aparcadaA = fa && fa >= hoy;
+    const aparcadaB = fb && fb >= hoy;
+    if (aparcadaA !== aparcadaB) return aparcadaA ? 1 : -1;
+    const dirA = [limpiaTexto(a.n.calle), limpiaTexto(a.n.numero)].filter(Boolean).join(' ');
+    const dirB = [limpiaTexto(b.n.calle), limpiaTexto(b.n.numero)].filter(Boolean).join(' ');
+    return dirA.localeCompare(dirB, 'es');
   });
 }
 
@@ -1809,7 +1822,7 @@ function renderPanelRapido(ficha, candidatos, seguimiento) {
   const firstProp = ingProps[0];
   const propLabel = ingProps.length ? `Propietarios (${ingProps.length}) ›` : 'Propietarios ›';
   parts.push(`
-    <div class="pr-item pr-item-btn" onclick="ntOpenModal('addProp')" title="Agregar propietario">
+    <div class="pr-item pr-item-btn" onclick="abrirAgregarPropietario()" title="Agregar propietario">
       <div class="pr-item-label">${propLabel}</div>
       ${firstProp
         ? `<div class="pr-item-val">${firstProp.nombre}${ingProps.length > 1 ? `<span style="font-size:11px;color:#888;font-weight:400"> +${ingProps.length - 1} más</span>` : ''}</div>
@@ -1840,7 +1853,7 @@ function renderPanelRapido(ficha, candidatos, seguimiento) {
       <div class="ui-label">Último intento</div>
       ${ultimoSeg ? `
         <div class="ui-row">
-          <div class="ui-desc">${ultimoSeg.nota ? ultimoSeg.nota.slice(0,50) : 'Nota sin descripción'}</div>
+          <div class="ui-desc">${ultimoSeg.nota || 'Nota sin descripción'}</div>
           ${hace ? `<span class="ui-hace">${hace}</span>` : ''}
         </div>
         <div class="ui-sub">${formatFecha(ultimoSeg.fecha)} · ${ultimoSeg.autor || ''}</div>
@@ -1888,6 +1901,7 @@ function renderPropietarios(props) {
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
           ${p.estado === 'Confirmado propietario' ? '<span class="nt-fuente f-inglobably">Confirmado</span>' : '<span class="nt-fuente f-inglobably">Inglobably</span>'}
+          <button class="btn-sm" onclick="abrirEditarPropietario(${p.row_num})">Editar</button>
           <button class="btn-sm" style="color:#b91c1c;border-color:#fca5a5" onclick="eliminarPropietario(${p.row_num})">Eliminar</button>
         </div>
       </div>
@@ -2216,27 +2230,64 @@ async function guardarNotaInglobably() {
   finally { btn.disabled = false; btn.textContent = 'Guardar'; }
 }
 
+function abrirAgregarPropietario() {
+  document.getElementById('propRowNum').value         = '';
+  document.getElementById('addPropTitle').textContent  = 'Agregar propietario';
+  document.getElementById('btnGuardarProp').textContent = 'Agregar';
+  ['propNombre','propNIF','propTel','propFechaNac'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('propParentesco').value = '';
+  ntOpenModal('addProp');
+}
+
+function abrirEditarPropietario(rowNum) {
+  const p = fichaData.candidatos.find(c => c.row_num === rowNum);
+  if (!p) return;
+  document.getElementById('propRowNum').value        = rowNum;
+  document.getElementById('addPropTitle').textContent = 'Editar propietario';
+  document.getElementById('btnGuardarProp').textContent = 'Guardar cambios';
+  document.getElementById('propNombre').value      = p.nombre        || '';
+  document.getElementById('propNIF').value         = p.nif           || '';
+  document.getElementById('propParentesco').value  = p.parentesco    || '';
+  document.getElementById('propTel').value         = p.telefono      || '';
+  const fn = p.fecha_nacimiento;
+  document.getElementById('propFechaNac').value = fn
+    ? (String(fn).includes('T') ? String(fn).split('T')[0] : String(fn).slice(0, 10))
+    : '';
+  ntOpenModal('addProp');
+}
+
 async function guardarPropietario() {
-  const nombre          = document.getElementById('propNombre').value.trim();
-  const nif             = document.getElementById('propNIF').value.trim().toUpperCase();
-  const parentesco      = document.getElementById('propParentesco').value;
+  const nombre           = document.getElementById('propNombre').value.trim();
+  const nif              = document.getElementById('propNIF').value.trim().toUpperCase();
+  const parentesco       = document.getElementById('propParentesco').value;
   const fecha_nacimiento = document.getElementById('propFechaNac').value;
-  const tel             = document.getElementById('propTel').value.trim();
+  const tel              = document.getElementById('propTel').value.trim();
+  const rowNum           = document.getElementById('propRowNum').value;
   if (!nombre) { showToast('El nombre es obligatorio'); return; }
   const btn = document.getElementById('btnGuardarProp');
   btn.disabled = true; btn.textContent = 'Guardando…';
   try {
-    await ntApi({
-      action:   'agregar_candidato',
-      ficha_id: fichaData.ficha.ficha_id,
-      nombre, nif, parentesco, fecha_nacimiento, telefono: tel,
-      fuente:   'Inglobably',
-      estado:   'Pendiente',
-      asesor:   asesorActual
-    });
+    if (rowNum) {
+      await ntApi({
+        action: 'actualizar_candidato',
+        ficha_id: fichaData.ficha.ficha_id,
+        row_num: Number(rowNum),
+        nombre, nif, parentesco, fecha_nacimiento, telefono: tel
+      });
+    } else {
+      await ntApi({
+        action:   'agregar_candidato',
+        ficha_id: fichaData.ficha.ficha_id,
+        nombre, nif, parentesco, fecha_nacimiento, telefono: tel,
+        fuente:   'Inglobably',
+        estado:   'Pendiente',
+        asesor:   asesorActual
+      });
+    }
     ntCloseModal('addProp');
     ['propNombre','propNIF','propTel','propFechaNac'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('propParentesco').value = '';
+    document.getElementById('propRowNum').value     = '';
     showToast('✓ Propietario agregado');
     await recargarFicha();
   } catch(err) { showToast('Error: ' + err.message); }
