@@ -1637,8 +1637,6 @@ function toggleAgrupar() {
   renderLista();
 }
 
-const ETAPA_ORDER = ['Detectada','Investigando','Llamando (ABC)','Esperando tel. Esther','Llamando (Esther)','Esperando Nota Simple','Nota Simple recibida','Contactado'];
-
 function noticiasFiltradas() {
   let lista = noticias.map((n, i) => ({ n, i }));
   if (filtroTexto) {
