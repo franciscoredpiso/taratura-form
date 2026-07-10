@@ -112,10 +112,11 @@
 
 .estado-piso { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px;
                border-radius: 999px; font-size: 12px; font-weight: 700; }
-.ep-vacio     { background: var(--nt-red-light); color: #991b1b; }
-.ep-alquilado { background: var(--nt-yellow-light); color: #92400e; }
-.ep-prop      { background: var(--nt-green-light); color: #14532d; }
-.ep-sin-datos { background: var(--nt-gray-light); color: var(--nt-muted); }
+.ep-vacio      { background: var(--nt-red-light); color: #991b1b; }
+.ep-alquilado  { background: var(--nt-yellow-light); color: #92400e; }
+.ep-prop       { background: var(--nt-green-light); color: #14532d; }
+.ep-sin-datos  { background: var(--nt-gray-light); color: var(--nt-muted); }
+.ep-valoracion { background: #ede9fe; color: #5b21b6; }
 
 .ultimo-intento { background: #fff7ed; border-radius: 8px; padding: 10px 12px; grid-column: 1/-1; }
 .ui-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: #92400e; margin-bottom: 5px; }
@@ -930,8 +931,9 @@
       <button class="quick-opt" onclick="setEstadoPiso('Parece vacío')">📭 Parece vacío</button>
       <button class="quick-opt" onclick="setEstadoPiso('Alquilado')">🔑 Alquilado</button>
       <button class="quick-opt" onclick="setEstadoPiso('Propietario vive')">🏠 Propietario vive</button>
+      <button class="quick-opt" onclick="setEstadoPiso('Solicitó Valoración')">📋 Solicitó Valoración</button>
     </div>
-    <button class="nt-btn-cancel" style="width:100%;margin-top:12px" onclick="ntCloseModal('quickEstado')">Cancelar</button>
+    <button class="nt-btn-cancel" style="width:100%;margin-top:12px" onclick="ntCloseModal('quickEstado')">Cerrar</button>
   </div>
 </div>
 
