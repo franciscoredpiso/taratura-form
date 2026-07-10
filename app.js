@@ -1775,7 +1775,7 @@ async function setEtapaPipeline(etapa) {
 function renderPanelRapido(ficha, candidatos, seguimiento) {
   const grid   = document.getElementById('panelRapidoGrid');
   const parts  = [];
-  const epMap  = { 'Parece vacío': 'ep-vacio', 'Alquilado': 'ep-alquilado', 'Propietario vive': 'ep-prop' };
+  const epMap  = { 'Parece vacío': 'ep-vacio', 'Alquilado': 'ep-alquilado', 'Propietario vive': 'ep-prop', 'Solicitó Valoración': 'ep-valoracion' };
   const epClass = epMap[ficha.estado_piso] || 'ep-sin-datos';
   parts.push(`
     <div class="pr-item pr-item-btn" onclick="ntOpenModal('quickEstado')" title="Toca para cambiar">
