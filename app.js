@@ -1570,8 +1570,18 @@ async function ntApi(payload) {
 
 function initNoticias() {
   asesorActual = localStorage.getItem('tz_asesor') || '';
+  // Siempre arrancar sin ficha seleccionada
+  fichaData = null;
+  document.querySelectorAll('.noticia-card').forEach(c => c.classList.remove('card-sel'));
+  document.getElementById('fichaContent').style.display     = 'none';
+  document.getElementById('fichaPlaceholder').style.display = '';
+  document.getElementById('screenFicha').classList.remove('ficha-abierta');
   document.getElementById('screenNoticias').classList.add('active');
-  document.getElementById('screenFicha').classList.add('active');
+  if (isDesktop()) {
+    document.getElementById('screenFicha').classList.add('active');
+  } else {
+    document.getElementById('screenFicha').classList.remove('active');
+  }
   const hoy = new Date().toISOString().split('T')[0];
   const fns = document.getElementById('notasimpleFecha');
   const flp = document.getElementById('llamadaFechaProx');
