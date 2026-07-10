@@ -302,6 +302,9 @@
                background: white; font-size: 12px; font-weight: 700; cursor: pointer;
                white-space: nowrap; color: var(--nt-gray); flex-shrink: 0; }
 .btn-agrupar.on { background: var(--nt-primary-light); color: var(--nt-primary); border-color: var(--nt-primary); }
+.nt-chip { padding: 4px 10px; border-radius: 999px; border: 1.5px solid var(--nt-border);
+           background: white; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--nt-gray); }
+.nt-chip.active { background: var(--nt-primary-light); color: var(--nt-primary); border-color: var(--nt-primary); }
 
 /* Grupo portal */
 .grupo-hdr { display: flex; align-items: center; justify-content: space-between;
@@ -611,6 +614,17 @@
       <input class="nt-search-input" id="buscarInput" type="search" placeholder="Buscar calle, portal, piso…" oninput="filtrarNoticias()">
       <button class="btn-agrupar" id="btnAgrupar" onclick="toggleAgrupar()">Por portal</button>
     </div>
+    <div style="display:flex;gap:6px;padding:0 16px 10px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:11px;font-weight:700;color:#94a3b8;margin-right:2px">FILTRO</span>
+      <button class="nt-chip active" id="chip-todas"         onclick="setFiltroEtapa('')">Todas</button>
+      <button class="nt-chip"        id="chip-investigando"  onclick="setFiltroEtapa('Investigando')">Investigando</button>
+      <button class="nt-chip"        id="chip-llamando"      onclick="setFiltroEtapa('Llamando')">Llamando</button>
+      <button class="nt-chip"        id="chip-esperando"     onclick="setFiltroEtapa('Esperando')">Esperando</button>
+      <span style="font-size:11px;font-weight:700;color:#94a3b8;margin-left:6px;margin-right:2px">ORDEN</span>
+      <button class="nt-chip active" id="sort-actividad"     onclick="setSortMode('actividad')">Actividad</button>
+      <button class="nt-chip"        id="sort-alfa"          onclick="setSortMode('alfa')">A–Z</button>
+      <button class="nt-chip"        id="sort-etapa"         onclick="setSortMode('etapa')">Etapa</button>
+    </div>
     <div class="nt-list-wrap">
       <div class="list-hdr">
         <h2 id="listaTitulo">Mis noticias</h2>
@@ -670,6 +684,12 @@
     </div>
   </div>
 
+  <!-- Datos de Taratura — antes del pipeline -->
+  <div class="nt-section" id="secTaratura" style="display:none;margin:0;border-radius:0;border-left:none;border-right:none">
+    <div class="sec-hdr" onclick="ntToggleSec(this)">Datos de Taratura <span>▾</span></div>
+    <div class="sec-body" id="datosTaraturaBox"></div>
+  </div>
+
   <div class="pipeline-wrap">
     <div class="pip-label">Pipeline de investigación</div>
     <div class="pipeline" id="pipeline"></div>
@@ -677,29 +697,6 @@
   </div>
 
   <div class="nt-ficha-body">
-    <div class="nt-section" id="secTaratura" style="display:none">
-      <div class="sec-hdr" onclick="ntToggleSec(this)">Datos de Taratura <span>▾</span></div>
-      <div class="sec-body" id="datosTaraturaBox"></div>
-    </div>
-
-    <div class="nt-section">
-      <div class="sec-hdr" onclick="ntToggleSec(this)">Información Inglobably <span>▾</span></div>
-      <div class="sec-body">
-        <div class="info-row" id="inglobablyInfo"></div>
-        <button class="btn-link" onclick="ntOpenModal('notaInglobably')">+ Agregar nota</button>
-      </div>
-    </div>
-
-    <div class="nt-section">
-      <div class="sec-hdr" onclick="ntToggleSec(this)">Posibles propietarios <span>▾</span></div>
-      <div class="sec-body">
-        <div class="cand-actions">
-          <button class="btn-sm" onclick="ntOpenModal('addProp')">+ Agregar propietario</button>
-        </div>
-        <div id="propietariosList"></div>
-      </div>
-    </div>
-
     <div class="nt-section">
       <div class="sec-hdr" onclick="ntToggleSec(this)">Candidatos a llamar <span>▾</span></div>
       <div class="sec-body">
@@ -707,8 +704,15 @@
           <button class="btn-sm" onclick="ntOpenModal('candidato')">+ Manual</button>
           <button class="btn-sm" onclick="ntOpenModal('importarABC')" style="background:#dbeafe;border-color:#93c5fd;color:#1d4ed8">↓ Importar ABC</button>
         </div>
-        <div id="candidatosResumen" style="font-size:13px;color:#888;margin:8px 0"></div>
-        <button class="btn-ver-candidatos" onclick="abrirPanelCandidatos()">Ver candidatos →</button>
+        <div id="candidatosResumen"></div>
+      </div>
+    </div>
+
+    <div class="nt-section">
+      <div class="sec-hdr" onclick="ntToggleSec(this)">Inglobably <span>›</span></div>
+      <div class="sec-body" style="display:none">
+        <div class="info-row" id="inglobablyInfo"></div>
+        <button class="btn-link" onclick="ntOpenModal('notaInglobably')">+ Agregar nota</button>
       </div>
     </div>
 
@@ -728,8 +732,8 @@
     </div>
 
     <div class="nt-section">
-      <div class="sec-hdr" onclick="ntToggleSec(this)">Historial <span>▾</span></div>
-      <div class="sec-body" id="historialBox"></div>
+      <div class="sec-hdr" onclick="ntToggleSec(this)">Historial <span>›</span></div>
+      <div class="sec-body" style="display:none" id="historialBox"></div>
     </div>
 
     <div class="section-cerrar">
@@ -1007,6 +1011,19 @@
     <div class="nt-modal-actions">
       <button class="nt-btn-cancel" onclick="ntCloseModal('tarea')">Cancelar</button>
       <button class="nt-btn-primary" id="btnGuardarTarea" onclick="guardarTarea()">Guardar tarea</button>
+    </div>
+  </div>
+</div>
+
+<div class="nt-modal-overlay" id="nt-modal-propietariosPanel">
+  <div class="nt-modal panel-modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-shrink:0">
+      <div class="nt-modal-title" style="margin:0">Propietarios</div>
+      <button onclick="ntCloseModal('propietariosPanel')" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888;padding:4px">✕</button>
+    </div>
+    <div class="panel-modal-body" id="propietariosPanelList"></div>
+    <div style="flex-shrink:0;padding-top:12px;border-top:1px solid #f1f5f9;margin-top:auto">
+      <button class="nt-btn-primary" style="width:100%" onclick="ntCloseModal('propietariosPanel');abrirAgregarPropietario()">+ Agregar propietario</button>
     </div>
   </div>
 </div>

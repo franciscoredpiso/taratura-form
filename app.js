@@ -1512,6 +1512,8 @@ let noticias        = [];
 let fichaData       = null;
 let candidatoActivo = null;
 let filtroTexto     = '';
+let filtroEtapa     = '';
+let sortMode        = 'actividad';
 let agrupadoActivo  = false;
 
 function isDesktop() { return window.innerWidth >= 800; }
@@ -1605,11 +1607,37 @@ function filtrarNoticias() {
   renderLista();
 }
 
+function setFiltroEtapa(etapa) {
+  filtroEtapa = etapa;
+  ['chip-todas','chip-investigando','chip-llamando','chip-esperando'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  const map = { '': 'chip-todas', 'Investigando': 'chip-investigando', 'Llamando': 'chip-llamando', 'Esperando': 'chip-esperando' };
+  const chip = document.getElementById(map[etapa] || 'chip-todas');
+  if (chip) chip.classList.add('active');
+  renderLista();
+}
+
+function setSortMode(mode) {
+  sortMode = mode;
+  ['sort-actividad','sort-alfa','sort-etapa'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  const map = { actividad: 'sort-actividad', alfa: 'sort-alfa', etapa: 'sort-etapa' };
+  const chip = document.getElementById(map[mode]);
+  if (chip) chip.classList.add('active');
+  renderLista();
+}
+
 function toggleAgrupar() {
   agrupadoActivo = !agrupadoActivo;
   document.getElementById('btnAgrupar').classList.toggle('on', agrupadoActivo);
   renderLista();
 }
+
+const ETAPA_ORDER = ['Detectada','Investigando','Llamando (ABC)','Esperando tel. Esther','Llamando (Esther)','Esperando Nota Simple','Nota Simple recibida','Contactado'];
 
 function noticiasFiltradas() {
   let lista = noticias.map((n, i) => ({ n, i }));
@@ -1619,12 +1647,32 @@ function noticiasFiltradas() {
       return texto.includes(filtroTexto);
     });
   }
+  if (filtroEtapa) {
+    lista = lista.filter(({ n }) => {
+      const e = (n.etapa_actual || '').toLowerCase();
+      return e.includes(filtroEtapa.toLowerCase());
+    });
+  }
   const hoy = new Date().toISOString().split('T')[0];
   return lista.sort((a, b) => {
+    if (sortMode === 'alfa') {
+      const dirA = [limpiaTexto(a.n.calle), limpiaTexto(a.n.numero)].filter(Boolean).join(' ');
+      const dirB = [limpiaTexto(b.n.calle), limpiaTexto(b.n.numero)].filter(Boolean).join(' ');
+      return dirA.localeCompare(dirB, 'es');
+    }
+    if (sortMode === 'etapa') {
+      const eA = ETAPA_ORDER.indexOf(a.n.etapa_actual || 'Detectada');
+      const eB = ETAPA_ORDER.indexOf(b.n.etapa_actual || 'Detectada');
+      if (eA !== eB) return eA - eB;
+      const dirA = [limpiaTexto(a.n.calle), limpiaTexto(a.n.numero)].filter(Boolean).join(' ');
+      const dirB = [limpiaTexto(b.n.calle), limpiaTexto(b.n.numero)].filter(Boolean).join(' ');
+      return dirA.localeCompare(dirB, 'es');
+    }
+    // actividad: parked cards go to bottom, rest alphabetical
     const fa = a.n.fecha_proxima_accion ? String(a.n.fecha_proxima_accion).slice(0, 10) : '';
     const fb = b.n.fecha_proxima_accion ? String(b.n.fecha_proxima_accion).slice(0, 10) : '';
-    const aparcadaA = fa && fa >= hoy;
-    const aparcadaB = fb && fb >= hoy;
+    const aparcadaA = fa && fa > hoy;
+    const aparcadaB = fb && fb > hoy;
     if (aparcadaA !== aparcadaB) return aparcadaA ? 1 : -1;
     const dirA = [limpiaTexto(a.n.calle), limpiaTexto(a.n.numero)].filter(Boolean).join(' ');
     const dirB = [limpiaTexto(b.n.calle), limpiaTexto(b.n.numero)].filter(Boolean).join(' ');
@@ -1692,7 +1740,8 @@ function renderLista() {
   const lista = noticiasFiltradas();
   document.getElementById('listaCount').textContent = lista.length;
   if (!lista.length) {
-    box.innerHTML = `<div style="padding:14px 16px;font-size:13px;color:#888">Sin resultados para "<strong>${filtroTexto}</strong>"</div>`;
+    const motivo = filtroTexto ? `"${filtroTexto}"` : filtroEtapa || 'este filtro';
+    box.innerHTML = `<div style="padding:14px 16px;font-size:13px;color:#888">Sin resultados para <strong>${motivo}</strong></div>`;
     return;
   }
   if (agrupadoActivo) {
@@ -1732,7 +1781,6 @@ async function abrirFichaNoticia(idx) {
   document.getElementById('fichaEtapaBadge').textContent = n.etapa_actual || 'Detectada';
   document.getElementById('fichaEtapaBadge').className   = 'nt-badge ' + badgeClass(n.etapa_actual);
   document.getElementById('panelRapidoGrid').innerHTML    = '<div class="pr-item full"><div class="pr-item-label">Cargando…</div></div>';
-  document.getElementById('propietariosList').innerHTML   = '<div style="color:#888;font-size:13px;padding:4px 0">Cargando…</div>';
   document.getElementById('candidatosResumen').innerHTML  = '<span style="color:#888;font-style:italic">Cargando…</span>';
   document.getElementById('historialBox').innerHTML       = '<div style="color:#888;font-size:13px;padding:4px 0">Cargando historial…</div>';
   try {
@@ -1823,7 +1871,7 @@ function renderPanelRapido(ficha, candidatos, seguimiento) {
   const firstProp = ingProps[0];
   const propLabel = ingProps.length ? `Propietarios (${ingProps.length}) ›` : 'Propietarios ›';
   parts.push(`
-    <div class="pr-item pr-item-btn" onclick="abrirAgregarPropietario()" title="Agregar propietario">
+    <div class="pr-item pr-item-btn" onclick="abrirPropietariosPanel()" title="Ver propietarios">
       <div class="pr-item-label">${propLabel}</div>
       ${firstProp
         ? `<div class="pr-item-val">${firstProp.nombre}${ingProps.length > 1 ? `<span style="font-size:11px;color:#888;font-weight:400"> +${ingProps.length - 1} más</span>` : ''}</div>
@@ -1935,29 +1983,8 @@ function renderInglobably(ficha, seguimiento) {
 }
 
 function renderPropietarios(props) {
-  const box = document.getElementById('propietariosList');
-  if (!props || !props.length) {
-    box.innerHTML = '<div style="color:#888;font-size:13px;font-style:italic">Sin propietarios identificados. Agregá los datos encontrados en Inglobably.</div>';
-    return;
-  }
-  box.innerHTML = props.map(p => `
-    <div class="cand-item">
-      <div class="cand-top">
-        <div style="flex:1">
-          <div class="cand-nombre">${p.nombre || '—'}${p.parentesco ? ` <span style="font-size:11px;font-weight:400;color:#888">(${p.parentesco})</span>` : ''}</div>
-          <div class="${p.nif ? 'prop-nif' : 'prop-nif missing'}">
-            ${p.nif ? `<span class="nif-badge">NIF</span> ${p.nif}` : 'Sin NIF — necesario para Nota Simple y Esther'}
-          </div>
-          ${p.fecha_nacimiento ? `<div style="font-size:11px;color:#888;margin-top:2px">Nac.: ${formatFecha(p.fecha_nacimiento)}</div>` : ''}
-          ${p.telefono ? `<div class="cand-tel" style="margin-top:3px">${p.telefono}</div>` : ''}
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-          ${p.estado === 'Confirmado propietario' ? '<span class="nt-fuente f-inglobably">Confirmado</span>' : '<span class="nt-fuente f-inglobably">Inglobably</span>'}
-          <button class="btn-sm" onclick="abrirEditarPropietario(${p.row_num})">Editar</button>
-          <button class="btn-sm" style="color:#b91c1c;border-color:#fca5a5" onclick="eliminarPropietario(${p.row_num})">Eliminar</button>
-        </div>
-      </div>
-    </div>`).join('');
+  propietariosActuales = props || [];
+  // propietarios se muestran en el panel popout, no inline
 }
 
 async function eliminarPropietario(rowNum) {
@@ -1970,6 +1997,45 @@ async function eliminarPropietario(rowNum) {
   } catch(err) { showToast('Error: ' + err.message); }
 }
 
+// ── Propietarios panel ──────────────────────────────────────────────────────
+
+let propietariosActuales = [];
+
+function abrirPropietariosPanel() {
+  renderPropietariosPanel();
+  ntOpenModal('propietariosPanel');
+}
+
+function renderPropietariosPanel() {
+  const box = document.getElementById('propietariosPanelList');
+  const lista = propietariosActuales;
+  if (!lista.length) {
+    box.innerHTML = `
+      <div style="padding:24px;text-align:center;color:#888;font-size:13px;font-style:italic">
+        Sin propietarios registrados.
+      </div>`;
+    return;
+  }
+  box.innerHTML = lista.map(p => `
+    <div style="padding:14px 0;border-bottom:1px solid #f1f5f9">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-weight:700;font-size:15px">${p.nombre || '—'}</div>
+          ${p.nif      ? `<div style="font-size:12px;color:#64748b">NIF: ${p.nif}</div>` : ''}
+          ${p.parentesco ? `<div style="font-size:12px;color:#64748b">${p.parentesco}</div>` : ''}
+          ${p.telefono ? `<div style="font-size:13px;margin-top:3px;font-weight:600">${p.telefono}</div>` : ''}
+          ${p.fecha_nacimiento ? `<div style="font-size:12px;color:#94a3b8">Nacimiento: ${String(p.fecha_nacimiento).slice(0,10)}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;margin-left:10px">
+          <button class="btn-sm" onclick="ntCloseModal('propietariosPanel');abrirEditarPropietario(${p.row_num})">Editar</button>
+          <button class="btn-sm" style="background:#fee2e2;border-color:#fca5a5;color:#b91c1c" onclick="eliminarPropietario(${p.row_num})">Borrar</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ── Candidatos ──────────────────────────────────────────────────────────────
+
 let candidatosActuales = [];
 let filtroCandidatos   = 'todos';
 
@@ -1980,10 +2046,26 @@ function renderCandidatos(candidatos) {
     box.innerHTML = '<span style="color:#888;font-style:italic">Sin candidatos cargados.</span>';
     return;
   }
-  const total      = candidatosActuales.length;
-  const pendientes = candidatosActuales.filter(c => c.estado !== 'Descartado' && c.estado !== 'No existe').length;
-  const descart    = candidatosActuales.filter(c => c.estado === 'Descartado' || c.estado === 'No existe').length;
-  box.innerHTML = `<strong>${total}</strong> candidatos · <span style="color:#15803d">${pendientes} activos</span>${descart ? ` · <span style="color:#b91c1c">${descart} descartados</span>` : ''}`;
+  const total    = candidatosActuales.length;
+  const activos  = candidatosActuales.filter(c => c.estado !== 'Descartado' && c.estado !== 'No existe');
+  const estadoIcon = { 'Pendiente': '🕐', 'Suena / sin respuesta': '📵', 'Suena / no relacionado': '🔇',
+                       'No existe': '❌', 'Descartado': '❌', 'Confirmado propietario': '✅' };
+  const primeros = candidatosActuales.slice(0, 3);
+  const html = primeros.map(c => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f1f5f9">
+      <div>
+        <div style="font-weight:600;font-size:13px">${c.nombre || '—'}</div>
+        <div style="font-size:12px;color:#64748b">${c.telefono || 'Sin tel.'}${c.parentesco ? ' · ' + c.parentesco : ''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:12px">${estadoIcon[c.estado] || '🕐'}</span>
+        <button class="btn-sm" onclick="abrirLlamadaDesdePanel(${c.row_num})">Llamar</button>
+      </div>
+    </div>`).join('');
+  const verTodos = total > 3
+    ? `<button class="btn-link" style="margin-top:8px;width:100%;text-align:center" onclick="abrirPanelCandidatos()">Ver todos (${total}) →</button>`
+    : (total > 0 ? `<button class="btn-link" style="margin-top:8px;width:100%;text-align:center" onclick="abrirPanelCandidatos()">Ver todos →</button>` : '');
+  box.innerHTML = html + verTodos;
 }
 
 function abrirPanelCandidatos() {
