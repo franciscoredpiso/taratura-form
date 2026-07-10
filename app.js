@@ -1707,7 +1707,7 @@ async function abrirFichaNoticia(idx) {
   document.getElementById('fichaEtapaBadge').className   = 'nt-badge ' + badgeClass(n.etapa_actual);
   document.getElementById('panelRapidoGrid').innerHTML    = '<div class="pr-item full"><div class="pr-item-label">Cargando…</div></div>';
   document.getElementById('propietariosList').innerHTML   = '<div style="color:#888;font-size:13px;padding:4px 0">Cargando…</div>';
-  document.getElementById('candidatosList').innerHTML     = '<div style="color:#888;font-size:13px;padding:4px 0">Cargando…</div>';
+  document.getElementById('candidatosResumen').innerHTML  = '<span style="color:#888;font-style:italic">Cargando…</span>';
   document.getElementById('historialBox').innerHTML       = '<div style="color:#888;font-size:13px;padding:4px 0">Cargando historial…</div>';
   try {
     const data = await ntApi({ action: 'get_ficha_noticia', ficha_id: n.ficha_id });
@@ -3219,18 +3219,24 @@ async function loadPortalesList(forceRefresh) {
     const zona   = document.getElementById('fZona').value;
     document.getElementById('portalesResults').innerHTML =
         '<div class="portales-empty">Cargando portales…</div>';
+    const ctrl    = new AbortController();
+    const timer   = setTimeout(() => ctrl.abort(), 30000);
     try {
         const res    = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
-            body:   JSON.stringify({ action: 'listar_portales', asesor, zona })
+            body:   JSON.stringify({ action: 'listar_portales', asesor, zona }),
+            signal: ctrl.signal
         });
+        clearTimeout(timer);
         const result = await res.json();
-        if (!result.ok) throw new Error(result.error || 'Error');
+        if (!result.ok) throw new Error(result.error || 'Error del servidor');
         portalesData = result.portales || [];
         renderPortalesList();
     } catch (err) {
+        clearTimeout(timer);
+        const msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (30s). Revisá la conexión.' : (err.message || 'Error desconocido');
         document.getElementById('portalesResults').innerHTML =
-            `<div class="portales-empty">Error al cargar.<br><button onclick="loadPortalesList(true)" style="margin-top:8px;padding:8px 16px;background:#0d9488;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer">Reintentar</button></div>`;
+            `<div class="portales-empty" style="color:#b91c1c">${msg}<br><button onclick="loadPortalesList(true)" style="margin-top:8px;padding:8px 16px;background:#0d9488;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer">Reintentar</button></div>`;
     }
 }
 
