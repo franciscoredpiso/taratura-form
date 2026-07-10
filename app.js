@@ -1514,6 +1514,7 @@ let candidatoActivo = null;
 let filtroTexto     = '';
 let filtroEtapa     = '';
 let sortMode        = 'actividad';
+let sortDir         = 'desc';
 let agrupadoActivo  = false;
 
 function isDesktop() { return window.innerWidth >= 800; }
@@ -1609,25 +1610,18 @@ function filtrarNoticias() {
 
 function setFiltroEtapa(etapa) {
   filtroEtapa = etapa;
-  ['chip-todas','chip-investigando','chip-llamando','chip-esperando'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.classList.remove('active');
-  });
-  const map = { '': 'chip-todas', 'Investigando': 'chip-investigando', 'Llamando': 'chip-llamando', 'Esperando': 'chip-esperando' };
-  const chip = document.getElementById(map[etapa] || 'chip-todas');
-  if (chip) chip.classList.add('active');
   renderLista();
 }
 
 function setSortMode(mode) {
   sortMode = mode;
-  ['sort-actividad','sort-alfa','sort-etapa'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.classList.remove('active');
-  });
-  const map = { actividad: 'sort-actividad', alfa: 'sort-alfa', etapa: 'sort-etapa' };
-  const chip = document.getElementById(map[mode]);
-  if (chip) chip.classList.add('active');
+  renderLista();
+}
+
+function toggleSortDir() {
+  sortDir = sortDir === 'desc' ? 'asc' : 'desc';
+  const btn = document.getElementById('btnOrdenDir');
+  if (btn) btn.textContent = sortDir === 'asc' ? '↑' : '↓';
   renderLista();
 }
 
@@ -1645,23 +1639,29 @@ function noticiasFiltradas() {
       return texto.includes(filtroTexto);
     });
   }
-  if (filtroEtapa) {
+  if (filtroEtapa === 'Cerrada') {
+    lista = lista.filter(({ n }) => (n.etapa_actual || '') === 'Cerrada');
+  } else if (filtroEtapa) {
     lista = lista.filter(({ n }) => {
       const e = (n.etapa_actual || '').toLowerCase();
       return e.includes(filtroEtapa.toLowerCase());
     });
+    lista = lista.filter(({ n }) => (n.etapa_actual || '') !== 'Cerrada');
+  } else {
+    lista = lista.filter(({ n }) => (n.etapa_actual || '') !== 'Cerrada');
   }
   const hoy = new Date().toISOString().split('T')[0];
+  const d = sortDir === 'asc' ? 1 : -1;
   return lista.sort((a, b) => {
     if (sortMode === 'alfa') {
       const dirA = [limpiaTexto(a.n.calle), limpiaTexto(a.n.numero)].filter(Boolean).join(' ');
       const dirB = [limpiaTexto(b.n.calle), limpiaTexto(b.n.numero)].filter(Boolean).join(' ');
-      return dirA.localeCompare(dirB, 'es');
+      return d * dirA.localeCompare(dirB, 'es');
     }
     if (sortMode === 'etapa') {
       const eA = ETAPA_ORDER.indexOf(a.n.etapa_actual || 'Detectada');
       const eB = ETAPA_ORDER.indexOf(b.n.etapa_actual || 'Detectada');
-      if (eA !== eB) return eA - eB;
+      if (eA !== eB) return d * (eA - eB);
       const dirA = [limpiaTexto(a.n.calle), limpiaTexto(a.n.numero)].filter(Boolean).join(' ');
       const dirB = [limpiaTexto(b.n.calle), limpiaTexto(b.n.numero)].filter(Boolean).join(' ');
       return dirA.localeCompare(dirB, 'es');
@@ -1674,7 +1674,7 @@ function noticiasFiltradas() {
     if (aparcadaA !== aparcadaB) return aparcadaA ? 1 : -1;
     const dirA = [limpiaTexto(a.n.calle), limpiaTexto(a.n.numero)].filter(Boolean).join(' ');
     const dirB = [limpiaTexto(b.n.calle), limpiaTexto(b.n.numero)].filter(Boolean).join(' ');
-    return dirA.localeCompare(dirB, 'es');
+    return d * dirA.localeCompare(dirB, 'es');
   });
 }
 
@@ -1817,6 +1817,7 @@ function renderFicha() {
   renderCandidatos(llamarAll);
   renderProximaAccion(ficha);
   renderHistorial(seguimiento);
+  renderSeccionCerrar();
 }
 
 function renderPipeline(etapa) {
@@ -2516,6 +2517,29 @@ async function confirmarCerrar() {
     volverLista();
   } catch(err) { showToast('Error: ' + err.message); }
   finally { btn.disabled = false; btn.textContent = 'Cerrar noticia'; }
+}
+
+function renderSeccionCerrar() {
+  const sec = document.getElementById('seccionCerrar');
+  if (!sec) return;
+  const etapa = fichaData?.ficha?.etapa_actual || '';
+  if (etapa === 'Cerrada') {
+    sec.innerHTML = `<button class="btn-acc" style="width:100%;background:#059669;color:white;border-color:#059669" onclick="reabrirNoticia()">Reabrir noticia</button>`;
+  } else {
+    sec.innerHTML = `<button class="btn-acc btn-danger" style="width:100%" onclick="ntOpenModal('cerrar')">Cerrar noticia</button>`;
+  }
+}
+
+async function reabrirNoticia() {
+  if (!confirm('¿Reabrir esta noticia? Volverá a aparecer en tu lista de activas.')) return;
+  try {
+    await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: fichaData.ficha.ficha_id,
+                  estado_caso: 'Abierta', etapa_actual: 'Detectada' });
+    await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id, autor: asesorActual,
+                  nota: 'Noticia reabierta' });
+    showToast('✓ Noticia reabierta');
+    await recargarFicha();
+  } catch(err) { showToast('Error: ' + err.message); }
 }
 
 async function recargarFicha() {

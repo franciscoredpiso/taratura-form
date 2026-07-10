@@ -305,6 +305,15 @@
 .nt-chip { padding: 4px 10px; border-radius: 999px; border: 1.5px solid var(--nt-border);
            background: white; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--nt-gray); }
 .nt-chip.active { background: var(--nt-primary-light); color: var(--nt-primary); border-color: var(--nt-primary); }
+.nt-select { padding: 6px 10px; border-radius: 8px; border: 1.5px solid var(--nt-border);
+             background: white; font-size: 12px; font-weight: 600; color: #374151; cursor: pointer;
+             appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+             background-repeat: no-repeat; background-position: right 8px center; padding-right: 26px; }
+.nt-select:focus { outline: none; border-color: var(--nt-primary); }
+.btn-orden-dir { padding: 6px 10px; border-radius: 8px; border: 1.5px solid var(--nt-border);
+                 background: white; font-size: 14px; cursor: pointer; color: #374151; font-weight: 700;
+                 flex-shrink: 0; line-height: 1; }
+.btn-orden-dir:active { background: var(--nt-primary-light); border-color: var(--nt-primary); }
 
 /* Grupo portal */
 .grupo-hdr { display: flex; align-items: center; justify-content: space-between;
@@ -614,16 +623,20 @@
       <input class="nt-search-input" id="buscarInput" type="search" placeholder="Buscar calle, portal, piso…" oninput="filtrarNoticias()">
       <button class="btn-agrupar" id="btnAgrupar" onclick="toggleAgrupar()">Por portal</button>
     </div>
-    <div style="display:flex;gap:6px;padding:0 16px 10px;flex-wrap:wrap;align-items:center">
-      <span style="font-size:11px;font-weight:700;color:#94a3b8;margin-right:2px">FILTRO</span>
-      <button class="nt-chip active" id="chip-todas"         onclick="setFiltroEtapa('')">Todas</button>
-      <button class="nt-chip"        id="chip-investigando"  onclick="setFiltroEtapa('Investigando')">Investigando</button>
-      <button class="nt-chip"        id="chip-llamando"      onclick="setFiltroEtapa('Llamando')">Llamando</button>
-      <button class="nt-chip"        id="chip-esperando"     onclick="setFiltroEtapa('Esperando')">Esperando</button>
-      <span style="font-size:11px;font-weight:700;color:#94a3b8;margin-left:6px;margin-right:2px">ORDEN</span>
-      <button class="nt-chip active" id="sort-actividad"     onclick="setSortMode('actividad')">Actividad</button>
-      <button class="nt-chip"        id="sort-alfa"          onclick="setSortMode('alfa')">A–Z</button>
-      <button class="nt-chip"        id="sort-etapa"         onclick="setSortMode('etapa')">Etapa</button>
+    <div style="display:flex;gap:8px;padding:0 16px 10px;align-items:center">
+      <select class="nt-select" id="selectFiltro" onchange="setFiltroEtapa(this.value)">
+        <option value="">Todas las activas</option>
+        <option value="Detectada">Detectada</option>
+        <option value="Investigando">Investigando</option>
+        <option value="Llamando">Llamando</option>
+        <option value="Cerrada">Cerradas</option>
+      </select>
+      <select class="nt-select" id="selectOrden" onchange="setSortMode(this.value)">
+        <option value="actividad">Actividad</option>
+        <option value="alfa">Alfabético</option>
+        <option value="etapa">Etapa</option>
+      </select>
+      <button class="btn-orden-dir" id="btnOrdenDir" onclick="toggleSortDir()" title="Cambiar dirección">↓</button>
     </div>
     <div class="nt-list-wrap">
       <div class="list-hdr">
@@ -736,9 +749,7 @@
       <div class="sec-body" style="display:none" id="historialBox"></div>
     </div>
 
-    <div class="section-cerrar">
-      <button class="btn-acc btn-danger" style="width:100%" onclick="ntOpenModal('cerrar')">Cerrar noticia</button>
-    </div>
+    <div class="section-cerrar" id="seccionCerrar"></div>
   </div>
   </div><!-- /#fichaContent -->
 </div><!-- /#screenFicha -->
