@@ -376,6 +376,7 @@ function init() {
 
     loadCallesIndex();
 
+    initSwipe();
     const lastScreen = localStorage.getItem('tz_lastScreen') || 'home';
     showScreen((asesor && zona) ? lastScreen : 'home');
 }
@@ -2713,6 +2714,48 @@ init();
 // ═════════════════════════════════════════════
 
 // ── Navegación entre pantallas ──────────────
+let _swipeDir = 'none';
+const SWIPE_SCREENS = ['portales', 'taratura', 'noticias', 'tareas'];
+
+function applyScreenAnim(el) {
+    const cls = _swipeDir === 'fwd' ? 'screen-enter-fwd'
+              : _swipeDir === 'bwd' ? 'screen-enter-bwd'
+              : 'screen-enter';
+    _swipeDir = 'none';
+    void el.offsetHeight;
+    el.classList.add(cls);
+}
+
+function initSwipe() {
+    let startX = 0, startY = 0, startTime = 0;
+    document.addEventListener('touchstart', e => {
+        startX    = e.touches[0].clientX;
+        startY    = e.touches[0].clientY;
+        startTime = Date.now();
+    }, { passive: true });
+    document.addEventListener('touchend', e => {
+        if (Date.now() - startTime > 500) return;
+        const dx = e.changedTouches[0].clientX - startX;
+        const dy = e.changedTouches[0].clientY - startY;
+        if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy)) return;
+        const ficha = document.getElementById('screenFicha');
+        if (ficha && ficha.classList.contains('ficha-abierta')) {
+            if (dx > 0) volverLista();
+            return;
+        }
+        const current = localStorage.getItem('tz_lastScreen');
+        const idx = SWIPE_SCREENS.indexOf(current);
+        if (idx === -1) return;
+        if (dx < 0 && idx < SWIPE_SCREENS.length - 1) {
+            _swipeDir = 'fwd';
+            showScreen(SWIPE_SCREENS[idx + 1]);
+        } else if (dx > 0 && idx > 0) {
+            _swipeDir = 'bwd';
+            showScreen(SWIPE_SCREENS[idx - 1]);
+        }
+    }, { passive: true });
+}
+
 function showScreen(screen) {
     const home        = document.getElementById('homeSection');
     const main        = document.getElementById('mainContainer');
@@ -2737,7 +2780,7 @@ function showScreen(screen) {
     por.style.display    = 'none';
     tzSec.style.display  = 'none';
     if (tzFab) tzFab.style.display = 'none';
-    [home, main, not, buz, por, tzSec].forEach(el => el.classList.remove('screen-enter'));
+    [home, main, not, buz, por, tzSec].forEach(el => el.classList.remove('screen-enter', 'screen-enter-fwd', 'screen-enter-bwd'));
     tabPortales.classList.remove('active');
     tabTaratura.classList.remove('active');
     tabNoticias.classList.remove('active');
@@ -2748,23 +2791,20 @@ function showScreen(screen) {
 
     if (screen === 'home') {
         home.style.display = 'flex';
-        void home.offsetHeight;
-        home.classList.add('screen-enter');
+        applyScreenAnim(home);
         title.textContent  = 'Captación de Inmuebles';
         homeBtn.classList.add('hidden');
 
     } else if (screen === 'taratura') {
         main.style.display = '';
-        void main.offsetHeight;
-        main.classList.add('screen-enter');
+        applyScreenAnim(main);
         tabTaratura.classList.add('active');
         title.textContent = 'Taratura';
         homeBtn.classList.remove('hidden');
 
     } else if (screen === 'noticias') {
         not.style.display = 'block';
-        void not.offsetHeight;
-        not.classList.add('screen-enter');
+        applyScreenAnim(not);
         tabNoticias.classList.add('active');
         title.textContent = 'Noticias';
         homeBtn.classList.remove('hidden');
@@ -2772,8 +2812,7 @@ function showScreen(screen) {
 
     } else if (screen === 'portales') {
         por.style.display = 'block';
-        void por.offsetHeight;
-        por.classList.add('screen-enter');
+        applyScreenAnim(por);
         tabPortales.classList.add('active');
         title.textContent = 'Portales';
         homeBtn.classList.remove('hidden');
@@ -2781,8 +2820,7 @@ function showScreen(screen) {
 
     } else if (screen === 'tareas') {
         tzSec.style.display = 'block';
-        void tzSec.offsetHeight;
-        tzSec.classList.add('screen-enter');
+        applyScreenAnim(tzSec);
         tabTareas.classList.add('active');
         title.textContent = 'Tareas';
         homeBtn.classList.remove('hidden');
@@ -2791,8 +2829,7 @@ function showScreen(screen) {
 
     } else if (screen === 'buzones') {
         buz.style.display = 'block';
-        void buz.offsetHeight;
-        buz.classList.add('screen-enter');
+        applyScreenAnim(buz);
         tabBuzones.classList.add('active');
         title.textContent = 'Buzones';
         homeBtn.classList.remove('hidden');
