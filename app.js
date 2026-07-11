@@ -107,6 +107,8 @@ const INDICIOS = [
 // ─────────────────────────────────────────────
 let floorSeq = 0;
 let doorSeq  = 0;
+let _swipeDir = 'none';
+const SWIPE_SCREENS = ['portales', 'taratura', 'noticias', 'tareas'];
 let savedSinceLastEdit = false; // true después de exportar; false cuando el usuario edita
 
 // ─────────────────────────────────────────────
@@ -2714,8 +2716,6 @@ init();
 // ═════════════════════════════════════════════
 
 // ── Navegación entre pantallas ──────────────
-let _swipeDir = 'none';
-const SWIPE_SCREENS = ['portales', 'taratura', 'noticias', 'tareas'];
 
 function applyScreenAnim(el) {
     const cls = _swipeDir === 'fwd' ? 'screen-enter-fwd'
