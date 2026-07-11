@@ -381,6 +381,10 @@ function init() {
     initSwipe();
     const lastScreen = localStorage.getItem('tz_lastScreen') || 'home';
     showScreen((asesor && zona) ? lastScreen : 'home');
+    requestAnimationFrame(() => {
+        const activeTab = document.querySelector('.nav-tab.active');
+        movePill(activeTab, !!activeTab);
+    });
 }
 
 // ─────────────────────────────────────────────
@@ -2793,11 +2797,13 @@ function showScreen(screen) {
         applyScreenAnim(home);
         title.textContent  = 'Captación de Inmuebles';
         homeBtn.classList.add('hidden');
+        movePill(null, false);
 
     } else if (screen === 'taratura') {
         main.style.display = '';
         applyScreenAnim(main);
         tabTaratura.classList.add('active');
+        movePill(tabTaratura, true);
         title.textContent = 'Taratura';
         homeBtn.classList.remove('hidden');
 
@@ -2805,6 +2811,7 @@ function showScreen(screen) {
         not.style.display = 'block';
         applyScreenAnim(not);
         tabNoticias.classList.add('active');
+        movePill(tabNoticias, true);
         title.textContent = 'Noticias';
         homeBtn.classList.remove('hidden');
         initNoticias();
@@ -2813,6 +2820,7 @@ function showScreen(screen) {
         por.style.display = 'block';
         applyScreenAnim(por);
         tabPortales.classList.add('active');
+        movePill(tabPortales, true);
         title.textContent = 'Portales';
         homeBtn.classList.remove('hidden');
         initPortales();
@@ -2821,6 +2829,7 @@ function showScreen(screen) {
         tzSec.style.display = 'block';
         applyScreenAnim(tzSec);
         tabTareas.classList.add('active');
+        movePill(tabTareas, true);
         title.textContent = 'Tareas';
         homeBtn.classList.remove('hidden');
         if (tzFab) tzFab.style.display = '';
@@ -2830,6 +2839,7 @@ function showScreen(screen) {
         buz.style.display = 'block';
         applyScreenAnim(buz);
         tabBuzones.classList.add('active');
+        movePill(tabBuzones, true);
         title.textContent = 'Buzones';
         homeBtn.classList.remove('hidden');
         // Siempre arrancar en Pendientes al entrar a la sección
@@ -2842,6 +2852,20 @@ function showScreen(screen) {
         if (capGrid) capGrid.style.display = '';
         loadBuzList();
     }
+}
+
+function movePill(tabEl, visible) {
+    const pill = document.getElementById('navPill');
+    if (!pill) return;
+    if (!visible || !tabEl) { pill.style.opacity = '0'; return; }
+    const nav = document.querySelector('.bottom-nav');
+    const navRect = nav.getBoundingClientRect();
+    const tabRect = tabEl.getBoundingClientRect();
+    const pillW = tabRect.width - 16;
+    const center = tabRect.left + tabRect.width / 2 - navRect.left;
+    pill.style.width = pillW + 'px';
+    pill.style.transform = 'translateX(' + (center - pillW / 2) + 'px)';
+    pill.style.opacity = '1';
 }
 
 // ── IndexedDB ───────────────────────────────
