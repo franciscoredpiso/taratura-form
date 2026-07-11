@@ -2707,9 +2707,8 @@ document.querySelectorAll('.nt-modal-overlay').forEach(o => {
 });
 
 // ─────────────────────────────────────────────
-//  START
+//  START  (moved to end of file — let/const TDZ)
 // ─────────────────────────────────────────────
-init();
 
 // ═════════════════════════════════════════════
 //  MÓDULO BUZONES
@@ -5197,5 +5196,7 @@ document.addEventListener('click', e => {
         e.target.classList.remove('open');
     }
 });
+
+init();
 
 
