@@ -1769,6 +1769,7 @@ async function abrirFichaNoticia(idx) {
   if (card) card.classList.add('card-sel');
   if (!isDesktop()) {
     document.getElementById('screenNoticias').classList.remove('active');
+    document.getElementById('screenFicha').classList.add('active');
   }
   document.getElementById('screenFicha').classList.add('ficha-abierta');
   document.getElementById('fichaPlaceholder').style.display = 'none';
@@ -2718,24 +2719,30 @@ function showScreen(screen) {
     const not         = document.getElementById('noticiasSection');
     const buz         = document.getElementById('buzSection');
     const por         = document.getElementById('portalesSection');
+    const tzSec       = document.getElementById('tareasSection');
+    const tzFab       = document.getElementById('tzFabBtn');
     const tabPortales = document.getElementById('tabPortales');
     const tabTaratura = document.getElementById('tabTaratura');
     const tabNoticias = document.getElementById('tabNoticias');
     const tabBuzones  = document.getElementById('tabBuzones');
+    const tabTareas   = document.getElementById('tabTareas');
     const title       = document.querySelector('.header-title');
     const homeBtn     = document.getElementById('headerHomeBtn');
 
     // Ocultar todas las pantallas principales antes de mostrar la elegida
-    home.style.display = 'none';
-    main.style.display = 'none';
-    not.style.display  = 'none';
-    buz.style.display  = 'none';
-    por.style.display  = 'none';
-    [home, main, not, buz, por].forEach(el => el.classList.remove('screen-enter'));
+    home.style.display   = 'none';
+    main.style.display   = 'none';
+    not.style.display    = 'none';
+    buz.style.display    = 'none';
+    por.style.display    = 'none';
+    tzSec.style.display  = 'none';
+    if (tzFab) tzFab.style.display = 'none';
+    [home, main, not, buz, por, tzSec].forEach(el => el.classList.remove('screen-enter'));
     tabPortales.classList.remove('active');
     tabTaratura.classList.remove('active');
     tabNoticias.classList.remove('active');
     tabBuzones.classList.remove('active');
+    tabTareas.classList.remove('active');
 
     localStorage.setItem('tz_lastScreen', screen);
 
@@ -2771,6 +2778,16 @@ function showScreen(screen) {
         title.textContent = 'Portales';
         homeBtn.classList.remove('hidden');
         initPortales();
+
+    } else if (screen === 'tareas') {
+        tzSec.style.display = 'block';
+        void tzSec.offsetHeight;
+        tzSec.classList.add('screen-enter');
+        tabTareas.classList.add('active');
+        title.textContent = 'Tareas';
+        homeBtn.classList.remove('hidden');
+        if (tzFab) tzFab.style.display = '';
+        initTareas();
 
     } else if (screen === 'buzones') {
         buz.style.display = 'block';
@@ -4548,5 +4565,600 @@ function cerrarModal(id) {
 function portalesModalBackdrop(e, id) {
     if (e.target.id === id) cerrarModal(id);
 }
+
+// ═════════════════════════════════════════════
+//  MÓDULO TAREAS
+// ═════════════════════════════════════════════
+
+let tzAsesor                    = '';
+let tzTareasNoticias            = [];
+let tzTareasGenerales           = [];
+let tzTareasNoticiasCompletadas = [];
+let tzSortBy                    = 'fecha';
+let tzVistaActual               = 'pendientes';
+let tzFiltroPend                = 'todas';
+let tzFiltroComp                = 'semana';
+let tzPrioNueva                 = 'Media';
+let tzPrioEdicion               = 'Media';
+let tzIndiceRegistros           = null;
+let tzPuertaSelNt               = null;
+let tzPuertaSelEt               = null;
+let tzPortalSelNt               = null;
+let tzPortalSelEt               = null;
+
+const TZ_PRIO_ORDER = { 'Alta': 0, 'Media': 1, 'Baja': 2 };
+
+// ── Entrada al módulo ─────────────────────────
+function initTareas() {
+    tzAsesor = localStorage.getItem('tz_asesor') || '';
+    tzCargarTareasLocales();
+    tzCargarTareas();
+}
+
+// ── Utils ─────────────────────────────────────
+function tzToday() { return new Date().toISOString().split('T')[0]; }
+function tzTomorrow() { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; }
+function tzEndOfWeek() { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split('T')[0]; }
+function tzDaysAgo(n) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().split('T')[0]; }
+
+function tzFechaLabel(f) {
+    if (!f) return null;
+    const hoy = tzToday();
+    if (f < hoy) return 'Vencida';
+    if (f === hoy) return 'Hoy';
+    const d = new Date(f + 'T00:00:00');
+    const days = Math.round((d - new Date(hoy + 'T00:00:00')) / 86400000);
+    return days <= 7 ? 'Esta semana' : 'Más adelante';
+}
+
+function tzFormatFecha(f) {
+    if (!f) return '';
+    const p = String(f).split(/[T\s]/)[0].split('-');
+    if (p.length !== 3) return f;
+    return `${p[2]}/${p[1]}/${p[0]}`;
+}
+
+function tzBuildAddr(n) {
+    const parts = [n.calle, n.numero].filter(Boolean).join(' ');
+    const ubi   = [n.escalera, n.piso, n.puerta ? `Pta ${n.puerta}` : ''].filter(Boolean).join(' · ');
+    return [parts, ubi].filter(Boolean).join(' · ');
+}
+
+function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── API ───────────────────────────────────────
+async function tzApi(payload) {
+    const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+    let data;
+    try { data = await res.json(); } catch(e) { throw new Error('Respuesta no válida del servidor'); }
+    if (!data.ok) throw new Error(data.error || 'Error del servidor');
+    return data;
+}
+
+// ── Persistencia local ────────────────────────
+function tzCargarTareasLocales() {
+    try { tzTareasGenerales = JSON.parse(localStorage.getItem('tz_tareas_generales') || '[]'); } catch(e) { tzTareasGenerales = []; }
+    try { tzTareasNoticiasCompletadas = JSON.parse(localStorage.getItem('tz_tareas_not_comp') || '[]'); } catch(e) { tzTareasNoticiasCompletadas = []; }
+}
+
+function tzGuardarTareasLocales() {
+    localStorage.setItem('tz_tareas_generales', JSON.stringify(tzTareasGenerales));
+    localStorage.setItem('tz_tareas_not_comp',  JSON.stringify(tzTareasNoticiasCompletadas));
+}
+
+// ── Carga desde servidor ──────────────────────
+async function tzCargarTareas() {
+    document.getElementById('tzTaskList').innerHTML =
+        '<div class="tz-empty-state"><div class="tz-spinner"></div>Cargando tareas…</div>';
+    try {
+        const data = await tzApi({ action: 'listar_noticias', asesor: tzAsesor });
+        const noticias = data.noticias || [];
+        tzTareasNoticias = noticias
+            .filter(n => n.proxima_accion && n.proxima_accion.trim())
+            .map(n => ({
+                id:         'NOT-' + n.ficha_id,
+                tipo:       'Noticia',
+                desc:       n.proxima_accion.trim(),
+                notas:      '',
+                fecha:      n.fecha_proxima_accion ? String(n.fecha_proxima_accion).split(/[T\s]/)[0] : '',
+                prioridad:  'Media',
+                asesor:     n.asesor,
+                addr:       tzBuildAddr(n),
+                ficha_id:   n.ficha_id,
+                completada: false
+            }));
+    } catch(err) {
+        document.getElementById('tzTaskList').innerHTML =
+            `<div class="tz-empty-state">
+               <div style="font-weight:700;color:#b91c1c;margin-bottom:6px">Error al conectar</div>
+               <div style="font-size:12px;background:#fee2e2;padding:10px;border-radius:8px;max-width:300px;margin:0 auto">${err.message}</div>
+               <button style="margin-top:14px;padding:10px 20px;border:1px solid #e0e0e0;border-radius:8px;background:white;font-size:14px;cursor:pointer" onclick="tzCargarTareas()">Reintentar</button>
+             </div>`;
+        return;
+    }
+    tzRender();
+}
+
+// ── Render ────────────────────────────────────
+function tzPendientes() {
+    return [...tzTareasNoticias, ...tzTareasGenerales.filter(t => !t.completada)];
+}
+
+function tzPendientesFiltradas() {
+    const hoy = tzToday(), man = tzTomorrow(), proxSemana = tzEndOfWeek();
+    const lista = tzPendientes();
+    switch (tzFiltroPend) {
+        case 'vencidas': return lista.filter(t => t.fecha && t.fecha < hoy);
+        case 'hoy':      return lista.filter(t => t.fecha === hoy);
+        case 'manana':   return lista.filter(t => t.fecha === man);
+        case 'semana':   return lista.filter(t => t.fecha && t.fecha >= hoy && t.fecha <= proxSemana);
+        case 'sinfecha': return lista.filter(t => !t.fecha);
+        default:         return lista;
+    }
+}
+
+function tzCompletadasFiltradas() {
+    const lista = [...tzTareasGenerales.filter(t => t.completada), ...tzTareasNoticiasCompletadas];
+    switch (tzFiltroComp) {
+        case 'semana': { const d = tzDaysAgo(7);  return lista.filter(t => (t.fechaCompletada || '') >= d); }
+        case 'dias14': { const d = tzDaysAgo(14); return lista.filter(t => (t.fechaCompletada || '') >= d); }
+        case 'mes':    { const d = tzDaysAgo(30); return lista.filter(t => (t.fechaCompletada || '') >= d); }
+        default:       return lista;
+    }
+}
+
+function tzSortTareas(lista) {
+    return [...lista].sort((a, b) => {
+        if (tzSortBy === 'prioridad') {
+            const pa = TZ_PRIO_ORDER[a.prioridad] ?? 1, pb = TZ_PRIO_ORDER[b.prioridad] ?? 1;
+            if (pa !== pb) return pa - pb;
+        }
+        if (!a.fecha && !b.fecha) return 0;
+        if (!a.fecha) return 1;
+        if (!b.fecha) return -1;
+        const cmp = a.fecha.localeCompare(b.fecha);
+        if (cmp !== 0) return cmp;
+        const ha = a.hora || '99:99', hb = b.hora || '99:99';
+        if (ha !== hb) return ha.localeCompare(hb);
+        return (TZ_PRIO_ORDER[a.prioridad] ?? 1) - (TZ_PRIO_ORDER[b.prioridad] ?? 1);
+    });
+}
+
+function tzSortCompletadas(lista) {
+    return [...lista].sort((a, b) => (b.fechaCompletada || '').localeCompare(a.fechaCompletada || ''));
+}
+
+function tzRender() {
+    const pend  = tzPendientes();
+    const hoy   = tzToday();
+    const venc  = pend.filter(t => t.fecha && t.fecha < hoy).length;
+    const paraHoy = pend.filter(t => t.fecha === hoy).length;
+    const totComp = tzTareasGenerales.filter(t => t.completada).length + tzTareasNoticiasCompletadas.length;
+
+    document.getElementById('tzResVenc').textContent     = venc;
+    document.getElementById('tzResHoy').textContent      = paraHoy;
+    document.getElementById('tzResTotal').textContent    = pend.length;
+    document.getElementById('tzResCompletas').textContent = totComp;
+
+    tzVistaActual === 'pendientes' ? tzRenderPendientes() : tzRenderCompletadas();
+}
+
+function tzRenderPendientes() {
+    const lista = tzSortTareas(tzPendientesFiltradas());
+    const box   = document.getElementById('tzTaskList');
+    if (!lista.length) {
+        const msgs = { todas:'No hay tareas pendientes.', vencidas:'No hay tareas vencidas. ¡Todo al día!',
+                       hoy:'No hay tareas para hoy.', manana:'No hay tareas para mañana.',
+                       semana:'No hay tareas en la próxima semana.', sinfecha:'No hay tareas sin fecha.' };
+        box.innerHTML = `<div class="tz-empty-state"><div style="font-size:36px;margin-bottom:10px">✅</div><div>${msgs[tzFiltroPend]||'Sin tareas.'}</div></div>`;
+        return;
+    }
+    if (tzFiltroPend === 'todas') {
+        const grupos = { 'Vencida':[], 'Hoy':[], 'Esta semana':[], 'Más adelante':[], 'Sin fecha':[] };
+        lista.forEach(t => { const g = t.fecha ? (tzFechaLabel(t.fecha) || 'Más adelante') : 'Sin fecha'; grupos[g].push(t); });
+        const sec = { 'Vencida':{label:'Vencidas',cls:'tz-vencida'}, 'Hoy':{label:'Hoy',cls:'tz-hoy'},
+                      'Esta semana':{label:'Esta semana',cls:''}, 'Más adelante':{label:'Más adelante',cls:''}, 'Sin fecha':{label:'Sin fecha',cls:''} };
+        let html = '';
+        for (const [k, items] of Object.entries(grupos)) {
+            if (!items.length) continue;
+            html += `<div class="tz-section-hdr ${sec[k].cls}"><div class="tz-section-dot"></div>${sec[k].label} <span style="font-weight:400;opacity:.6">(${items.length})</span></div>`;
+            items.forEach(t => { html += tzRenderCard(t); });
+        }
+        box.innerHTML = html;
+    } else {
+        box.innerHTML = lista.map(t => tzRenderCard(t)).join('');
+    }
+}
+
+function tzRenderCompletadas() {
+    const lista = tzSortCompletadas(tzCompletadasFiltradas());
+    const box   = document.getElementById('tzTaskList');
+    if (!lista.length) {
+        const msgs = { semana:'No completaste tareas en la última semana.', dias14:'No completaste tareas en los últimos 14 días.',
+                       mes:'No completaste tareas en el último mes.', todas:'No hay tareas completadas todavía.' };
+        box.innerHTML = `<div class="tz-empty-state"><div style="font-size:36px;margin-bottom:10px">📋</div><div>${msgs[tzFiltroComp]||'Sin tareas completadas.'}</div></div>`;
+        return;
+    }
+    box.innerHTML = lista.map(t => tzRenderCard(t, true)).join('');
+}
+
+function tzRenderCard(t, esCompletada = false) {
+    const hoy       = tzToday();
+    const esVencida = !esCompletada && t.fecha && t.fecha < hoy;
+    const esHoy     = !esCompletada && t.fecha === hoy;
+    const prioClass = t.prioridad === 'Alta' ? 'tz-p-alta' : t.prioridad === 'Baja' ? 'tz-p-baja' : 'tz-p-media';
+    const tipoClass = t.tipo === 'Noticia' ? 'tz-t-noticia' : 'tz-t-general';
+    const fechaStr  = t.fecha ? tzFormatFecha(t.fecha) + (t.hora ? ' · ' + t.hora : '') : '';
+    const fechaCls  = esVencida ? 'tz-vencida' : esHoy ? 'tz-hoy-date' : '';
+    const cardCls   = `tz-card${esVencida ? ' tz-vencida' : esHoy ? ' tz-hoy' : ''}${esCompletada ? ' tz-completada' : ''}`;
+    const safeId    = t.id.replace(/[^a-zA-Z0-9-]/g, '-');
+
+    let btnsHtml;
+    if (esCompletada) {
+        const cuandoStr = t.fechaCompletada ? ' · ' + tzFormatFecha(t.fechaCompletada) : '';
+        btnsHtml = `<div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;color:#888">✓ Completada${cuandoStr}</span>
+          <button class="tz-btn-reabrir" onclick="tzReabrirTarea('${t.id}')">↩ Reabrir</button>
+        </div>`;
+    } else {
+        btnsHtml = `<div style="display:flex;align-items:center;gap:2px">
+          <button class="tz-btn-completar" onclick="tzCompletarTarea('${t.id}')">✓ Listo</button>
+          ${t.tipo === 'General' ? `
+            <button class="tz-btn-eliminar" onclick="tzEditarTarea('${t.id}')" title="Editar">✏️</button>
+            <button class="tz-btn-eliminar" onclick="tzEliminarTarea('${t.id}')" title="Eliminar">🗑</button>` : ''}
+        </div>`;
+    }
+
+    return `
+    <div class="${cardCls}" id="tz-card-${safeId}">
+      <div class="tz-card-top">
+        <div class="tz-card-left">
+          <div class="tz-card-desc">${escHtml(t.desc)}</div>
+          ${(t.addr || t.puerta_addr) ? `<div class="tz-card-addr">📍 ${escHtml(t.addr || t.puerta_addr)}${t.puerta_est ? ' <span style="font-size:10px;color:#888">· ' + escHtml(t.puerta_est) + '</span>' : ''}</div>` : ''}
+          ${t.notas ? `<div class="tz-card-addr" style="margin-top:4px;font-style:italic">${escHtml(t.notas)}</div>` : ''}
+        </div>
+        <div class="tz-card-right">
+          <span class="tz-prio-pill ${prioClass}">${t.prioridad}</span>
+          ${fechaStr ? `<span class="tz-card-fecha ${fechaCls}">${fechaStr}</span>` : ''}
+        </div>
+      </div>
+      <div class="tz-card-bottom">
+        <span class="tz-tipo-badge ${tipoClass}">${t.tipo}</span>
+        ${btnsHtml}
+      </div>
+    </div>`;
+}
+
+// ── Acciones ──────────────────────────────────
+async function tzCompletarTarea(id) {
+    const safeId = id.replace(/[^a-zA-Z0-9-]/g, '-');
+    const btn = document.querySelector(`#tz-card-${safeId} .tz-btn-completar`);
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    const hoy = tzToday();
+
+    if (id.startsWith('NOT-')) {
+        const ficha_id = id.replace('NOT-', '');
+        const original = tzTareasNoticias.find(t => t.id === id);
+        try {
+            await tzApi({ action: 'actualizar_ficha_noticia', ficha_id, proxima_accion: '', fecha_proxima_accion: '' });
+            if (original) tzTareasNoticiasCompletadas.push({ ...original, completada: true, fechaCompletada: hoy, _orig_proxima: original.desc, _orig_fecha: original.fecha });
+            tzTareasNoticias = tzTareasNoticias.filter(t => t.id !== id);
+            tzGuardarTareasLocales();
+            showToast('Tarea completada ✓');
+        } catch(err) {
+            showToast('Error: ' + err.message);
+            if (btn) { btn.disabled = false; btn.textContent = '✓ Listo'; }
+            return;
+        }
+    } else {
+        const t = tzTareasGenerales.find(t => t.id === id);
+        if (t) { t.completada = true; t.fechaCompletada = hoy; tzGuardarTareasLocales(); }
+        showToast('Tarea completada ✓');
+    }
+    tzRender();
+}
+
+async function tzReabrirTarea(id) {
+    const safeId = id.replace(/[^a-zA-Z0-9-]/g, '-');
+    const btn = document.querySelector(`#tz-card-${safeId} .tz-btn-reabrir`);
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+
+    if (id.startsWith('NOT-')) {
+        const comp = tzTareasNoticiasCompletadas.find(t => t.id === id);
+        if (!comp) return;
+        const ficha_id = id.replace('NOT-', '');
+        try {
+            await tzApi({ action: 'actualizar_ficha_noticia', ficha_id, proxima_accion: comp._orig_proxima || comp.desc, fecha_proxima_accion: comp._orig_fecha || '' });
+            tzTareasNoticias.push({ ...comp, completada: false, fechaCompletada: '' });
+            tzTareasNoticiasCompletadas = tzTareasNoticiasCompletadas.filter(t => t.id !== id);
+            tzGuardarTareasLocales();
+            showToast('Tarea reabierta ✓');
+        } catch(err) {
+            showToast('Error al reabrir: ' + err.message);
+            if (btn) { btn.disabled = false; btn.textContent = '↩ Reabrir'; }
+            return;
+        }
+    } else {
+        const t = tzTareasGenerales.find(t => t.id === id);
+        if (t) { t.completada = false; t.fechaCompletada = ''; tzGuardarTareasLocales(); }
+        showToast('Tarea reabierta ✓');
+    }
+    tzRender();
+}
+
+function tzEliminarTarea(id) {
+    if (!confirm('¿Eliminar esta tarea?')) return;
+    tzTareasGenerales = tzTareasGenerales.filter(t => t.id !== id);
+    tzGuardarTareasLocales();
+    tzRender();
+    showToast('Tarea eliminada');
+}
+
+function tzEditarTarea(id) {
+    const t = tzTareasGenerales.find(t => t.id === id);
+    if (!t) return;
+    document.getElementById('tzEtId').value    = id;
+    document.getElementById('tzEtDesc').value  = t.desc;
+    document.getElementById('tzEtNotas').value = t.notas || '';
+    document.getElementById('tzEtFecha').value = t.fecha || '';
+    document.getElementById('tzEtHora').value  = t.hora  || '';
+    tzPrioEdicion = t.prioridad || 'Media';
+    tzActualizarPrioPicker('tzEtPo', tzPrioEdicion);
+    if (t.puerta_addr) {
+        tzPuertaSelEt = { clave: t.puerta_clave, addr: t.puerta_addr, estado: t.puerta_est };
+        document.getElementById('tzEtPuertaBtn').style.display        = 'none';
+        document.getElementById('tzEtPortalSearchWrap').style.display = 'none';
+        document.getElementById('tzEtPuertaStepWrap').style.display   = 'none';
+        document.getElementById('tzEtPuertaSelected').style.display   = '';
+        document.getElementById('tzEtPuertaSelText').textContent      = t.puerta_addr;
+    } else {
+        tzLimpiarPuerta('et');
+        tzPuertaSelEt = null;
+    }
+    tzOpenModal('editarTarea');
+}
+
+function tzGuardarEdicion() {
+    const id   = document.getElementById('tzEtId').value;
+    const desc = document.getElementById('tzEtDesc').value.trim();
+    if (!desc) return;
+    const t = tzTareasGenerales.find(t => t.id === id);
+    if (!t) return;
+    t.desc         = desc;
+    t.notas        = document.getElementById('tzEtNotas').value.trim();
+    t.prioridad    = tzPrioEdicion;
+    t.fecha        = document.getElementById('tzEtFecha').value;
+    t.hora         = document.getElementById('tzEtHora').value;
+    t.puerta_clave = tzPuertaSelEt ? tzPuertaSelEt.clave  : '';
+    t.puerta_addr  = tzPuertaSelEt ? tzPuertaSelEt.addr   : '';
+    t.puerta_est   = tzPuertaSelEt ? tzPuertaSelEt.estado : '';
+    tzGuardarTareasLocales();
+    tzCloseModal('editarTarea');
+    tzRender();
+    showToast('Tarea actualizada');
+}
+
+// ── Nueva tarea ───────────────────────────────
+function tzCrearTarea() {
+    const desc = document.getElementById('tzNtDesc').value.trim();
+    if (!desc) return;
+    const nueva = {
+        id:           'GEN-' + Date.now(),
+        tipo:         'General',
+        desc,
+        notas:        document.getElementById('tzNtNotas').value.trim(),
+        fecha:        document.getElementById('tzNtFecha').value,
+        hora:         document.getElementById('tzNtHora').value,
+        prioridad:    tzPrioNueva,
+        asesor:       tzAsesor,
+        addr:         '',
+        puerta_clave: tzPuertaSelNt ? tzPuertaSelNt.clave  : '',
+        puerta_addr:  tzPuertaSelNt ? tzPuertaSelNt.addr   : '',
+        puerta_est:   tzPuertaSelNt ? tzPuertaSelNt.estado : '',
+        completada:   false
+    };
+    tzTareasGenerales.push(nueva);
+    tzGuardarTareasLocales();
+    tzCloseModal('nuevaTarea');
+    tzRender();
+    showToast('Tarea creada ✓');
+    document.getElementById('tzNtDesc').value  = '';
+    document.getElementById('tzNtNotas').value = '';
+    document.getElementById('tzNtFecha').value = tzToday();
+    document.getElementById('tzNtHora').value  = '';
+    tzPrioNueva = 'Media';
+    tzPuertaSelNt = null;
+    tzActualizarPrioPicker('tzPo', 'Media');
+    document.getElementById('tzBtnCrearTarea').disabled = true;
+}
+
+function tzCheckNuevaTarea() {
+    document.getElementById('tzBtnCrearTarea').disabled = !document.getElementById('tzNtDesc').value.trim();
+}
+
+// ── Prioridad ─────────────────────────────────
+function tzSetPrio(p) { tzPrioNueva = p; tzActualizarPrioPicker('tzPo', p); }
+function tzSetEditPrio(p) { tzPrioEdicion = p; tzActualizarPrioPicker('tzEtPo', p); }
+
+function tzActualizarPrioPicker(prefix, sel) {
+    ['Alta','Media','Baja'].forEach(p => {
+        const btn = document.getElementById(prefix + p);
+        if (!btn) return;
+        btn.className = 'tz-prio-opt';
+        if (p === sel) btn.classList.add('tz-sel-' + p.toLowerCase());
+        else btn.classList.add('tz-unsel');
+    });
+}
+
+// ── Vistas y filtros ──────────────────────────
+function tzSetVista(v) {
+    tzVistaActual = v;
+    document.getElementById('tzTabPend').classList.toggle('active', v === 'pendientes');
+    document.getElementById('tzTabComp').classList.toggle('active', v === 'completadas');
+    document.getElementById('tzSubBarPend').style.display = v === 'pendientes' ? '' : 'none';
+    document.getElementById('tzSubBarComp').style.display = v === 'completadas' ? '' : 'none';
+    tzRender();
+}
+
+function tzSetFiltroPend(f) {
+    tzFiltroPend = f;
+    const map = { todas:'tzFpTodas', vencidas:'tzFpVencidas', hoy:'tzFpHoy', manana:'tzFpManana', semana:'tzFpSemana', sinfecha:'tzFpSinfecha' };
+    Object.entries(map).forEach(([k, id]) => { const el = document.getElementById(id); if (el) el.classList.toggle('active', k === f); });
+    tzRender();
+}
+
+function tzSetFiltroComp(f) {
+    tzFiltroComp = f;
+    const map = { semana:'tzFcSemana', dias14:'tzFcDias14', mes:'tzFcMes', todas:'tzFcTodas' };
+    Object.entries(map).forEach(([k, id]) => { const el = document.getElementById(id); if (el) el.classList.toggle('active', k === f); });
+    tzRender();
+}
+
+function tzToggleSort() {
+    tzSortBy = tzSortBy === 'fecha' ? 'prioridad' : 'fecha';
+    const btn = document.getElementById('tzSortBtn');
+    btn.textContent = tzSortBy === 'fecha' ? '📅 Fecha' : '⚡ Prioridad';
+    btn.classList.toggle('active', tzSortBy === 'prioridad');
+    tzRender();
+}
+
+// ── Buscador de portal/puerta ─────────────────
+async function tzCargarIndice() {
+    if (tzIndiceRegistros !== null) return;
+    try {
+        const data = await tzApi({ action: 'obtener_indice' });
+        tzIndiceRegistros = data.indice || [];
+    } catch(e) { tzIndiceRegistros = []; }
+}
+
+async function tzActivarBuscadorPortal(prefix) {
+    document.getElementById('tz' + prefix.charAt(0).toUpperCase() + prefix.slice(1) + 'PuertaBtn').style.display        = 'none';
+    document.getElementById('tz' + prefix.charAt(0).toUpperCase() + prefix.slice(1) + 'PuertaStepWrap').style.display  = 'none';
+    const pUp  = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+    const wrap  = document.getElementById('tz' + pUp + 'PortalSearchWrap');
+    const input = document.getElementById('tz' + pUp + 'PortalInput');
+    const box   = document.getElementById('tz' + pUp + 'PortalResults');
+    wrap.style.display = '';
+    input.value = '';
+    box.innerHTML = '<div class="tz-puerta-no-results">Cargando portales…</div>';
+    input.focus();
+    await tzCargarIndice();
+    box.innerHTML = '<div class="tz-puerta-no-results">Escribí una calle para buscar.</div>';
+}
+
+function tzBuscarPortal(prefix) {
+    const pUp  = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+    const q    = document.getElementById('tz' + pUp + 'PortalInput').value.trim().toLowerCase();
+    const box  = document.getElementById('tz' + pUp + 'PortalResults');
+    if (!q || !tzIndiceRegistros) { box.innerHTML = '<div class="tz-puerta-no-results">Escribí una calle para buscar.</div>'; return; }
+    const palabras = q.split(/\s+/);
+    const portalesMap = {};
+    tzIndiceRegistros.forEach(p => {
+        const texto = [p.calle, p.numero].join(' ').toLowerCase();
+        if (!palabras.every(w => texto.includes(w))) return;
+        const key = (p.calle + '||' + p.numero).toLowerCase();
+        if (!portalesMap[key]) portalesMap[key] = { calle: p.calle, numero: p.numero, zona: p.zona, puertas: [] };
+        portalesMap[key].puertas.push(p);
+    });
+    const portales = Object.values(portalesMap).slice(0, 15);
+    if (!portales.length) { box.innerHTML = `<div class="tz-puerta-no-results">Sin resultados para <strong>${escHtml(q)}</strong></div>`; return; }
+    box.innerHTML = portales.map(portal => {
+        const dir  = [portal.calle, portal.numero].filter(Boolean).join(' ');
+        const n    = portal.puertas.length;
+        const safe = JSON.stringify;
+        return `<div class="tz-puerta-result" onclick="tzSeleccionarPortal('${prefix}',${safe(portal)})">
+          <div class="tz-puerta-result-main">${escHtml(dir)}</div>
+          <div class="tz-puerta-result-meta">${escHtml(portal.zona || '')}${portal.zona ? ' · ' : ''}${n} puerta${n !== 1 ? 's' : ''} registrada${n !== 1 ? 's' : ''}</div>
+        </div>`;
+    }).join('');
+}
+
+function tzSeleccionarPortal(prefix, portal) {
+    if (prefix === 'nt') tzPortalSelNt = portal; else tzPortalSelEt = portal;
+    const pUp = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+    document.getElementById('tz' + pUp + 'PortalSearchWrap').style.display = 'none';
+    document.getElementById('tz' + pUp + 'PuertaStepWrap').style.display   = '';
+    const dir    = [portal.calle, portal.numero].filter(Boolean).join(' ');
+    const safe   = JSON.stringify;
+    const puertas = portal.puertas.slice().sort((a, b) =>
+        [a.escalera, a.piso, a.puerta].join('|').localeCompare([b.escalera, b.piso, b.puerta].join('|'))
+    );
+    document.getElementById('tz' + pUp + 'PuertaStepResults').innerHTML =
+        `<div class="tz-puerta-result tz-portal-back" onclick="tzVolverBusqueda('${prefix}')">← ${escHtml(dir)}</div>` +
+        `<div class="tz-puerta-result" style="background:#f0fdf4" onclick="tzElegirPortalCompleto('${prefix}',${safe(dir)})">
+          <div class="tz-puerta-result-main" style="color:#16a34a">Todo el portal</div>
+          <div class="tz-puerta-result-meta">${puertas.length} puertas registradas</div>
+        </div>` +
+        puertas.map(p => {
+            const ubi  = [p.escalera, p.piso, p.puerta ? 'Pta ' + p.puerta : ''].filter(Boolean).join(' · ');
+            const addr = dir + (ubi ? ' · ' + ubi : '');
+            const est  = p.estado || '—';
+            return `<div class="tz-puerta-result" onclick="tzSeleccionarPuerta('${prefix}',${safe(p.clave)},${safe(addr)},${safe(est)})">
+              <div class="tz-puerta-result-main">${escHtml(ubi || 'Sin especificar')}</div>
+              <div class="tz-puerta-result-meta">${escHtml(est)}</div>
+            </div>`;
+        }).join('');
+}
+
+function tzVolverBusqueda(prefix) {
+    if (prefix === 'nt') tzPortalSelNt = null; else tzPortalSelEt = null;
+    const pUp = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+    document.getElementById('tz' + pUp + 'PuertaStepWrap').style.display   = 'none';
+    document.getElementById('tz' + pUp + 'PortalSearchWrap').style.display  = '';
+    document.getElementById('tz' + pUp + 'PortalInput').focus();
+}
+
+function tzElegirPortalCompleto(prefix, dir) {
+    tzSeleccionarPuerta(prefix, 'PORTAL||' + dir, dir + ' · portal completo', '');
+}
+
+function tzSeleccionarPuerta(prefix, clave, addr, estado) {
+    const sel = { clave, addr, estado };
+    if (prefix === 'nt') tzPuertaSelNt = sel; else tzPuertaSelEt = sel;
+    const pUp = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+    document.getElementById('tz' + pUp + 'PortalSearchWrap').style.display = 'none';
+    document.getElementById('tz' + pUp + 'PuertaStepWrap').style.display   = 'none';
+    document.getElementById('tz' + pUp + 'PuertaSelected').style.display   = '';
+    document.getElementById('tz' + pUp + 'PuertaSelText').textContent      = addr;
+}
+
+function tzLimpiarPuerta(prefix) {
+    if (prefix === 'nt') { tzPuertaSelNt = null; tzPortalSelNt = null; }
+    else                 { tzPuertaSelEt = null; tzPortalSelEt = null; }
+    const pUp = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+    document.getElementById('tz' + pUp + 'PuertaSelected').style.display    = 'none';
+    document.getElementById('tz' + pUp + 'PuertaBtn').style.display         = '';
+    document.getElementById('tz' + pUp + 'PortalSearchWrap').style.display  = 'none';
+    document.getElementById('tz' + pUp + 'PuertaStepWrap').style.display    = 'none';
+    const input = document.getElementById('tz' + pUp + 'PortalInput');
+    if (input) { input.value = ''; }
+    const box = document.getElementById('tz' + pUp + 'PortalResults');
+    if (box) box.innerHTML = '';
+    const stepBox = document.getElementById('tz' + pUp + 'PuertaStepResults');
+    if (stepBox) stepBox.innerHTML = '';
+}
+
+// ── Modal ─────────────────────────────────────
+function tzOpenModal(name) {
+    document.getElementById('tz-modal-' + name).classList.add('open');
+    if (name === 'nuevaTarea') {
+        tzActualizarPrioPicker('tzPo', tzPrioNueva);
+        document.getElementById('tzNtFecha').value = tzToday();
+        tzLimpiarPuerta('nt');
+        tzPuertaSelNt = null;
+    }
+}
+
+function tzCloseModal(name) {
+    document.getElementById('tz-modal-' + name).classList.remove('open');
+}
+
+document.addEventListener('click', e => {
+    if (e.target.classList.contains('tz-modal-overlay')) {
+        e.target.classList.remove('open');
+    }
+});
 
 

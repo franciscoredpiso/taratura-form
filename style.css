@@ -1602,3 +1602,236 @@
             animation: successLabelIn 0.3s 0.55s ease forwards;
         }
         @keyframes successLabelIn { to { opacity: 1; transform: translateY(0); } }
+
+        /* ═══════════════════════════════════════════════
+           MÓDULO TAREAS — Prefijo tz-
+           ═══════════════════════════════════════════════ */
+        .home-btn-tareas { background: #dc2626; }
+
+        #tareasSection {
+            background: #f5f5f7;
+            min-height: calc(100vh - 44px - 56px);
+        }
+
+        /* Barra de resumen */
+        .tz-resumen-bar {
+            background: white; border-bottom: 1px solid #e0e0e0;
+            padding: 10px 16px; display: flex; gap: 16px; align-items: center;
+        }
+        .tz-res-item { text-align: center; }
+        .tz-res-num  { font-size: 18px; font-weight: 800; color: #1a1a1a; line-height: 1; }
+        .tz-res-lbl  { font-size: 10px; color: #888; font-weight: 600; text-transform: uppercase;
+                       letter-spacing: .4px; margin-top: 2px; }
+        .tz-res-sep  { width: 1px; background: #e0e0e0; height: 28px; }
+        .tz-res-item.tz-venc .tz-res-num { color: #b91c1c; }
+        .tz-res-item.tz-hoy  .tz-res-num { color: #1d4ed8; }
+
+        /* Tabs y chips de filtro */
+        .tz-tabs-bar {
+            background: white; border-bottom: 1px solid #e0e0e0;
+            padding: 8px 16px; display: flex; align-items: center;
+            justify-content: space-between;
+            position: sticky; top: 44px; z-index: 6;
+        }
+        .tz-tabs { display: flex; gap: 4px; }
+        .tz-tab  {
+            padding: 6px 16px; border-radius: 8px; border: 1.5px solid #e0e0e0;
+            background: white; font-size: 13px; font-weight: 700; cursor: pointer; color: #888;
+        }
+        .tz-tab.active { background: #1d4ed8; color: white; border-color: #1d4ed8; }
+        .tz-sub-chips-bar {
+            background: white; border-bottom: 1px solid #e0e0e0; padding: 8px 16px;
+            display: flex; align-items: center; gap: 6px; overflow-x: auto;
+            position: sticky; top: 89px; z-index: 5; scrollbar-width: none;
+        }
+        .tz-sub-chips-bar::-webkit-scrollbar { display: none; }
+        .tz-chip {
+            padding: 5px 12px; border-radius: 999px; border: 1.5px solid #e0e0e0;
+            background: white; font-size: 12px; font-weight: 600; cursor: pointer;
+            color: #374151; white-space: nowrap; flex-shrink: 0;
+        }
+        .tz-chip.active { background: #dbeafe; color: #1d4ed8; border-color: #1d4ed8; }
+        .tz-sort-btn {
+            padding: 5px 10px; border-radius: 7px; border: 1.5px solid #e0e0e0;
+            background: white; font-size: 12px; font-weight: 600; cursor: pointer;
+            color: #374151; display: flex; align-items: center; gap: 4px; white-space: nowrap;
+        }
+        .tz-sort-btn.active { background: #f3f4f6; }
+
+        /* Lista */
+        .tz-list-wrap { padding: 14px 16px 100px; }
+        .tz-section-hdr {
+            font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px;
+            color: #888; margin: 16px 0 8px; display: flex; align-items: center; gap: 8px;
+        }
+        .tz-section-hdr:first-child { margin-top: 0; }
+        .tz-section-hdr.tz-vencida { color: #b91c1c; }
+        .tz-section-hdr.tz-hoy     { color: #1d4ed8; }
+        .tz-section-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+        /* Tarjeta de tarea */
+        .tz-card {
+            background: white; border-radius: 10px; border: 1px solid #e0e0e0;
+            padding: 13px 14px; margin-bottom: 8px;
+            transition: box-shadow .15s, transform .15s;
+        }
+        .tz-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.08); transform: translateY(-1px); }
+        .tz-card.tz-completada { opacity: .45; }
+        .tz-card.tz-vencida { border-left: 3px solid #b91c1c; }
+        .tz-card.tz-hoy     { border-left: 3px solid #1d4ed8; }
+        .tz-card-top { display: flex; justify-content: space-between; align-items: flex-start;
+                       margin-bottom: 7px; gap: 8px; }
+        .tz-card-left { flex: 1; min-width: 0; }
+        .tz-card-desc { font-size: 14px; font-weight: 700; line-height: 1.4; word-break: break-word; }
+        .tz-card-addr { font-size: 12px; color: #888; margin-top: 3px; }
+        .tz-card-right { display: flex; flex-direction: column; align-items: flex-end;
+                         gap: 5px; flex-shrink: 0; }
+        .tz-prio-pill {
+            font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px;
+            padding: 3px 7px; border-radius: 4px; white-space: nowrap;
+        }
+        .tz-p-alta  { background: #fee2e2; color: #b91c1c; }
+        .tz-p-media { background: #fef3c7; color: #92400e; }
+        .tz-p-baja  { background: #d1fae5; color: #065f46; }
+        .tz-card-fecha { font-size: 12px; color: #888; }
+        .tz-card-fecha.tz-vencida  { color: #b91c1c; font-weight: 700; }
+        .tz-card-fecha.tz-hoy-date { color: #1d4ed8; font-weight: 700; }
+        .tz-card-bottom {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 8px; padding-top: 8px; border-top: 1px solid #f3f4f6;
+        }
+        .tz-tipo-badge {
+            font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+            text-transform: uppercase; letter-spacing: .4px;
+        }
+        .tz-t-noticia { background: #e0e7ff; color: #3730a3; }
+        .tz-t-general { background: #f3f4f6; color: #374151; }
+        .tz-btn-completar {
+            font-size: 12px; font-weight: 700; color: #15803d; background: #dcfce7;
+            border: none; border-radius: 6px; padding: 5px 10px; cursor: pointer;
+            display: flex; align-items: center; gap: 4px;
+        }
+        .tz-btn-completar:hover { background: #bbf7d0; }
+        .tz-btn-completar:disabled { opacity: .5; cursor: default; }
+        .tz-btn-reabrir {
+            font-size: 12px; font-weight: 700; color: #1d4ed8; background: #dbeafe;
+            border: none; border-radius: 6px; padding: 5px 10px; cursor: pointer;
+        }
+        .tz-btn-reabrir:hover { background: #bfdbfe; }
+        .tz-btn-reabrir:disabled { opacity: .5; cursor: default; }
+        .tz-btn-eliminar {
+            font-size: 11px; color: #888; background: none; border: none;
+            cursor: pointer; padding: 5px 6px; border-radius: 5px; margin-left: 4px;
+        }
+        .tz-btn-eliminar:hover { background: #fee2e2; color: #b91c1c; }
+
+        /* FAB */
+        .tz-fab {
+            position: fixed; bottom: 24px; right: 20px; background: #1d4ed8; color: white;
+            border: none; border-radius: 999px; padding: 14px 20px; font-size: 15px;
+            font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(29,78,216,.4);
+            z-index: 50; display: flex; align-items: center; gap: 6px;
+            transition: box-shadow .15s, transform .1s;
+        }
+        .tz-fab:hover  { box-shadow: 0 6px 20px rgba(29,78,216,.5); transform: translateY(-1px); }
+        .tz-fab:active { transform: scale(.96); }
+
+        /* Empty / spinner */
+        .tz-empty-state { text-align: center; padding: 48px 24px; color: #888; font-size: 14px; }
+        .tz-spinner {
+            display: inline-block; width: 22px; height: 22px;
+            border: 2px solid rgba(0,0,0,.1); border-top-color: #1d4ed8;
+            border-radius: 50%; animation: tzSpin .6s linear infinite; margin: 0 auto 12px;
+        }
+        @keyframes tzSpin { to { transform: rotate(360deg); } }
+
+        /* Modal */
+        .tz-modal-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+            z-index: 100; align-items: flex-end; justify-content: center;
+        }
+        .tz-modal-overlay.open { display: flex; }
+        .tz-modal {
+            background: white; border-radius: 16px 16px 0 0; padding: 20px;
+            width: 100%; max-width: 480px; animation: tzSlideUp .2s ease;
+            max-height: 90vh; overflow-y: auto;
+        }
+        @keyframes tzSlideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .tz-modal-title { font-size: 15px; font-weight: 800; margin-bottom: 16px; }
+        .tz-form-group  { margin-bottom: 14px; }
+        .tz-form-group label {
+            font-size: 11px; color: #888; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .4px; display: block; margin-bottom: 5px;
+        }
+        .tz-form-group input, .tz-form-group textarea, .tz-form-group select {
+            width: 100%; padding: 10px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px;
+            font-size: 14px; font-family: inherit; background: white; color: #1a1a1a; outline: none;
+        }
+        .tz-form-group input:focus, .tz-form-group textarea:focus { border-color: #1d4ed8; }
+        .tz-form-group textarea { height: 70px; resize: none; }
+        .tz-modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+        .tz-btn-primary {
+            flex: 1; background: #1d4ed8; color: white; border: none; padding: 12px;
+            border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;
+        }
+        .tz-btn-primary:disabled { opacity: .6; cursor: default; }
+        .tz-btn-cancel {
+            padding: 12px 16px; border-radius: 8px; border: 1px solid #e0e0e0;
+            background: white; font-size: 14px; cursor: pointer; font-weight: 600;
+        }
+
+        /* Priority picker */
+        .tz-prio-picker { display: flex; gap: 8px; }
+        .tz-prio-opt {
+            flex: 1; padding: 9px; border-radius: 8px; border: 1.5px solid #e0e0e0;
+            background: white; font-size: 13px; font-weight: 700; cursor: pointer;
+            text-align: center; transition: all .15s;
+        }
+        .tz-prio-opt:hover { border-color: #1d4ed8; }
+        .tz-sel-alta  { background: #fee2e2; color: #b91c1c; border-color: #b91c1c; }
+        .tz-sel-media { background: #fef3c7; color: #92400e; border-color: #d97706; }
+        .tz-sel-baja  { background: #d1fae5; color: #065f46; border-color: #059669; }
+        .tz-unsel { opacity: .45; }
+
+        /* Buscador de puerta */
+        .tz-btn-vincular {
+            font-size: 13px; color: #1d4ed8; background: none;
+            border: 1px dashed #1d4ed8; border-radius: 7px; padding: 8px 14px;
+            width: 100%; text-align: center; cursor: pointer;
+        }
+        .tz-btn-vincular:hover { background: #dbeafe; }
+        .tz-puerta-search-input {
+            width: 100%; padding: 9px 12px; border: 1.5px solid #1d4ed8;
+            border-radius: 8px; font-size: 14px; font-family: inherit;
+            outline: none; margin-bottom: 6px; box-sizing: border-box;
+        }
+        .tz-puerta-results {
+            max-height: 190px; overflow-y: auto; border: 1px solid #e0e0e0;
+            border-radius: 8px; background: white;
+        }
+        .tz-puerta-result {
+            padding: 10px 12px; border-bottom: 1px solid #f3f4f6; cursor: pointer;
+        }
+        .tz-puerta-result:last-child { border-bottom: none; }
+        .tz-puerta-result:hover { background: #dbeafe; }
+        .tz-puerta-result-main { font-size: 13px; font-weight: 700; }
+        .tz-puerta-result-meta { font-size: 11px; color: #888; margin-top: 2px; }
+        .tz-puerta-no-results { padding: 12px; text-align: center; color: #888; font-size: 13px; }
+        .tz-portal-back { font-size: 12px; font-weight: 700; color: #1d4ed8; background: #dbeafe; }
+        .tz-portal-back:hover { filter: brightness(0.95); }
+        .tz-puerta-selected {
+            display: flex; align-items: center; gap: 8px; background: #dbeafe;
+            border-radius: 8px; padding: 9px 12px;
+        }
+        .tz-puerta-sel-text { flex: 1; font-size: 13px; font-weight: 600; color: #1d4ed8; }
+        .tz-puerta-clear {
+            font-size: 13px; color: #888; background: none; border: none;
+            cursor: pointer; padding: 2px 6px; border-radius: 4px; flex-shrink: 0;
+        }
+        .tz-puerta-clear:hover { background: #fee2e2; color: #b91c1c; }
+
+        @media (min-width: 800px) {
+            .tz-modal { border-radius: 12px; margin: auto; }
+            .tz-modal-overlay.open { align-items: center; }
+            @keyframes tzSlideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        }
