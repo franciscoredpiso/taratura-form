@@ -449,6 +449,10 @@
             <span class="home-btn-icon">🔔</span>
             <span>Noticias</span>
         </button>
+        <button class="home-btn home-btn-tareas" onclick="showScreen('tareas')">
+            <span class="home-btn-icon">✅</span>
+            <span>Tareas</span>
+        </button>
     </div>
     <div class="home-attribution">
         Callejero de calles: © Instituto Geográfico Nacional de España —
@@ -1245,6 +1249,151 @@
 
 </div>
 
+<!-- ── TAREAS SECTION ── -->
+<div id="tareasSection" style="display:none">
+
+  <div class="tz-resumen-bar" id="tzResumenBar">
+    <div class="tz-res-item tz-venc"><div class="tz-res-num" id="tzResVenc">—</div><div class="tz-res-lbl">Vencidas</div></div>
+    <div class="tz-res-sep"></div>
+    <div class="tz-res-item tz-hoy"><div class="tz-res-num" id="tzResHoy">—</div><div class="tz-res-lbl">Hoy</div></div>
+    <div class="tz-res-sep"></div>
+    <div class="tz-res-item"><div class="tz-res-num" id="tzResTotal">—</div><div class="tz-res-lbl">Pendientes</div></div>
+    <div class="tz-res-sep"></div>
+    <div class="tz-res-item"><div class="tz-res-num" id="tzResCompletas">—</div><div class="tz-res-lbl">Completadas</div></div>
+  </div>
+
+  <div class="tz-tabs-bar">
+    <div class="tz-tabs">
+      <button class="tz-tab active" id="tzTabPend" onclick="tzSetVista('pendientes')">Pendientes</button>
+      <button class="tz-tab"        id="tzTabComp" onclick="tzSetVista('completadas')">Completadas</button>
+    </div>
+    <button class="tz-sort-btn" id="tzSortBtn" onclick="tzToggleSort()">📅 Fecha</button>
+  </div>
+  <div class="tz-sub-chips-bar" id="tzSubBarPend">
+    <button class="tz-chip active" id="tzFpTodas"    onclick="tzSetFiltroPend('todas')">Todas</button>
+    <button class="tz-chip"        id="tzFpVencidas" onclick="tzSetFiltroPend('vencidas')">Vencidas</button>
+    <button class="tz-chip"        id="tzFpHoy"      onclick="tzSetFiltroPend('hoy')">Hoy</button>
+    <button class="tz-chip"        id="tzFpManana"   onclick="tzSetFiltroPend('manana')">Mañana</button>
+    <button class="tz-chip"        id="tzFpSemana"   onclick="tzSetFiltroPend('semana')">Próxima semana</button>
+    <button class="tz-chip"        id="tzFpSinfecha" onclick="tzSetFiltroPend('sinfecha')">Sin fecha</button>
+  </div>
+  <div class="tz-sub-chips-bar" id="tzSubBarComp" style="display:none">
+    <button class="tz-chip active" id="tzFcSemana" onclick="tzSetFiltroComp('semana')">Última semana</button>
+    <button class="tz-chip"        id="tzFcDias14" onclick="tzSetFiltroComp('dias14')">14 días</button>
+    <button class="tz-chip"        id="tzFcMes"    onclick="tzSetFiltroComp('mes')">Mes</button>
+    <button class="tz-chip"        id="tzFcTodas"  onclick="tzSetFiltroComp('todas')">Todas</button>
+  </div>
+
+  <div class="tz-list-wrap" id="tzTaskList">
+    <div class="tz-empty-state">
+      <div class="tz-spinner"></div>
+      Cargando tareas…
+    </div>
+  </div>
+
+</div>
+
+<button class="tz-fab" id="tzFabBtn" onclick="tzOpenModal('nuevaTarea')" style="display:none">+ Nueva tarea</button>
+
+<!-- ══ MODAL TAREAS: Nueva tarea ══ -->
+<div class="tz-modal-overlay" id="tz-modal-nuevaTarea">
+  <div class="tz-modal">
+    <div class="tz-modal-title">Nueva tarea</div>
+    <div class="tz-form-group">
+      <label>Descripción *</label>
+      <input type="text" id="tzNtDesc" placeholder="Qué hay que hacer…" oninput="tzCheckNuevaTarea()">
+    </div>
+    <div class="tz-form-group">
+      <label>Notas (opcional)</label>
+      <textarea id="tzNtNotas" placeholder="Contexto, detalles…"></textarea>
+    </div>
+    <div class="tz-form-group">
+      <label>Prioridad</label>
+      <div class="tz-prio-picker">
+        <button type="button" class="tz-prio-opt" id="tzPoAlta"  onclick="tzSetPrio('Alta')">🔴 Alta</button>
+        <button type="button" class="tz-prio-opt tz-sel-media" id="tzPoMedia" onclick="tzSetPrio('Media')">🟡 Media</button>
+        <button type="button" class="tz-prio-opt" id="tzPoBaja"  onclick="tzSetPrio('Baja')">🟢 Baja</button>
+      </div>
+    </div>
+    <div class="tz-form-group">
+      <label>Fecha límite</label>
+      <div style="display:flex;gap:8px">
+        <input type="date" id="tzNtFecha" style="flex:1">
+        <input type="time" id="tzNtHora" placeholder="Hora (opcional)" style="width:110px">
+      </div>
+    </div>
+    <div class="tz-form-group">
+      <label>Vincular a portal o puerta (opcional)</label>
+      <button type="button" class="tz-btn-vincular" id="tzNtPuertaBtn" onclick="tzActivarBuscadorPortal('nt')">+ Vincular portal o puerta</button>
+      <div id="tzNtPortalSearchWrap" style="display:none;margin-top:6px">
+        <input class="tz-puerta-search-input" type="text" id="tzNtPortalInput" placeholder="Buscar calle…" oninput="tzBuscarPortal('nt')" autocomplete="off">
+        <div class="tz-puerta-results" id="tzNtPortalResults"></div>
+      </div>
+      <div id="tzNtPuertaStepWrap" style="display:none;margin-top:6px">
+        <div class="tz-puerta-results" id="tzNtPuertaStepResults"></div>
+      </div>
+      <div class="tz-puerta-selected" id="tzNtPuertaSelected" style="display:none;margin-top:6px">
+        <div class="tz-puerta-sel-text" id="tzNtPuertaSelText">—</div>
+        <button type="button" class="tz-puerta-clear" onclick="tzLimpiarPuerta('nt')">✕ Quitar</button>
+      </div>
+    </div>
+    <div class="tz-modal-actions">
+      <button class="tz-btn-cancel" onclick="tzCloseModal('nuevaTarea')">Cancelar</button>
+      <button class="tz-btn-primary" id="tzBtnCrearTarea" onclick="tzCrearTarea()" disabled>Crear tarea</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL TAREAS: Editar tarea ══ -->
+<div class="tz-modal-overlay" id="tz-modal-editarTarea">
+  <div class="tz-modal">
+    <div class="tz-modal-title">Editar tarea</div>
+    <input type="hidden" id="tzEtId">
+    <div class="tz-form-group">
+      <label>Descripción *</label>
+      <input type="text" id="tzEtDesc" placeholder="Qué hay que hacer…">
+    </div>
+    <div class="tz-form-group">
+      <label>Notas (opcional)</label>
+      <textarea id="tzEtNotas" placeholder="Contexto, detalles…"></textarea>
+    </div>
+    <div class="tz-form-group">
+      <label>Prioridad</label>
+      <div class="tz-prio-picker">
+        <button type="button" class="tz-prio-opt" id="tzEtPoAlta"  onclick="tzSetEditPrio('Alta')">🔴 Alta</button>
+        <button type="button" class="tz-prio-opt" id="tzEtPoMedia" onclick="tzSetEditPrio('Media')">🟡 Media</button>
+        <button type="button" class="tz-prio-opt" id="tzEtPoBaja"  onclick="tzSetEditPrio('Baja')">🟢 Baja</button>
+      </div>
+    </div>
+    <div class="tz-form-group">
+      <label>Fecha límite</label>
+      <div style="display:flex;gap:8px">
+        <input type="date" id="tzEtFecha" style="flex:1">
+        <input type="time" id="tzEtHora" placeholder="Hora (opcional)" style="width:110px">
+      </div>
+    </div>
+    <div class="tz-form-group">
+      <label>Vincular a portal o puerta (opcional)</label>
+      <button type="button" class="tz-btn-vincular" id="tzEtPuertaBtn" onclick="tzActivarBuscadorPortal('et')">+ Vincular portal o puerta</button>
+      <div id="tzEtPortalSearchWrap" style="display:none;margin-top:6px">
+        <input class="tz-puerta-search-input" type="text" id="tzEtPortalInput" placeholder="Buscar calle…" oninput="tzBuscarPortal('et')" autocomplete="off">
+        <div class="tz-puerta-results" id="tzEtPortalResults"></div>
+      </div>
+      <div id="tzEtPuertaStepWrap" style="display:none;margin-top:6px">
+        <div class="tz-puerta-results" id="tzEtPuertaStepResults"></div>
+      </div>
+      <div class="tz-puerta-selected" id="tzEtPuertaSelected" style="display:none;margin-top:6px">
+        <div class="tz-puerta-sel-text" id="tzEtPuertaSelText">—</div>
+        <button type="button" class="tz-puerta-clear" onclick="tzLimpiarPuerta('et')">✕ Quitar</button>
+      </div>
+    </div>
+    <div class="tz-modal-actions">
+      <button class="tz-btn-cancel" onclick="tzCloseModal('editarTarea')">Cancelar</button>
+      <button class="tz-btn-primary" onclick="tzGuardarEdicion()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Nuevo portal -->
 <div class="modal-overlay" id="portalesNuevoModal" style="display:none" onclick="portalesModalBackdrop(event,'portalesNuevoModal')">
   <div class="modal-sheet">
@@ -1422,6 +1571,10 @@
   <button class="nav-tab" id="tabNoticias" onclick="showScreen('noticias')">
     <span class="nav-icon">🔔</span>
     <span>Noticias</span>
+  </button>
+  <button class="nav-tab" id="tabTareas" onclick="showScreen('tareas')">
+    <span class="nav-icon">✅</span>
+    <span>Tareas</span>
   </button>
   <button class="nav-tab" id="tabBuzones" onclick="showScreen('buzones')" style="display:none">
     <span class="nav-icon">📫</span>
