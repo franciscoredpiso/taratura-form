@@ -3676,12 +3676,13 @@ function renderPortalesList() {
         );
         html += `<div class="portales-calle-group"><div class="portales-calle-nombre">${calle}</div>`;
         for (const p of portales) {
-            const vueltas  = p.total_vueltas > 0 ? ` V${p.total_vueltas}` : '';
-            const fechaStr = p.ultima_visita ? ' · ' + portalesFmtFecha(p.ultima_visita) : '';
-            const obs      = String(p.observaciones || '').trim();
+            const vueltas       = p.total_vueltas > 0 ? ` V${p.total_vueltas}` : '';
+            const fechaStr      = p.ultima_visita ? ' · ' + portalesFmtFecha(p.ultima_visita) : '';
+            const obs           = String(p.observaciones || '').trim();
+            const sinBuzones    = !String(p.buzones || '').trim();
             html += `
               <div class="portales-item" onclick="abrirDetallePortal('${p.id_portal}')">
-                <span class="portales-numero">Nº ${p.numero}</span>
+                <span class="portales-numero">Nº ${p.numero}${sinBuzones ? ' <span class="portales-buzon-pendiente">Buzones</span>' : ''}</span>
                 <span class="portales-estado-badge ${portalEstadoClass(p.estado_actual)}">${portalEstadoIcon(p.estado_actual)} ${p.estado_actual || 'Pendiente'}</span>
                 <span class="portales-meta">${vueltas}${fechaStr}</span>
                 ${obs ? `<span class="portales-item-obs">${obs}</span>` : ''}
