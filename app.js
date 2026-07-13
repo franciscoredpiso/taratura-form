@@ -2583,9 +2583,17 @@ function limpiaTexto(s) {
   return noEsTexto(s) ? '' : String(s || '').trim();
 }
 
+function getNumero(f) {
+  const n = limpiaTexto(f.numero);
+  if (n) return n;
+  // fichas antiguas: extraer de clave (formato calle||numero||escalera||piso||puerta)
+  const parts = (f.clave || '').split('||');
+  return parts.length > 1 ? parts[1] : '';
+}
+
 function buildAddr(f) {
   const calle  = limpiaTexto(f.calle);
-  const numero = limpiaTexto(f.numero);
+  const numero = getNumero(f);
   const partes = [[calle, numero].filter(Boolean).join(' ')];
   if (f.escalera && !noEsTexto(f.escalera)) partes.push(f.escalera);
   if (f.piso     && !noEsTexto(f.piso))     partes.push(f.piso);
@@ -2595,7 +2603,7 @@ function buildAddr(f) {
 
 function setFichaAddr(el, f) {
   const calle  = limpiaTexto(f.calle);
-  const numero = limpiaTexto(f.numero);
+  const numero = getNumero(f);
   const esc    = limpiaTexto(f.escalera);
   const piso   = limpiaTexto(f.piso);
   const puerta = limpiaTexto(f.puerta);
