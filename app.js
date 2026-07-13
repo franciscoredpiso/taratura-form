@@ -379,7 +379,7 @@ function init() {
     loadCallesIndex();
 
     initSwipe();
-    const lastScreen = localStorage.getItem('tz_lastScreen') || 'home';
+    const lastScreen = sessionStorage.getItem('tz_lastScreen') || 'home';
     showScreen((asesor && zona) ? lastScreen : 'home');
     requestAnimationFrame(() => {
         const activeTab = document.querySelector('.nav-tab.active');
@@ -2791,6 +2791,7 @@ function showScreen(screen) {
     tabTareas.classList.remove('active');
 
     localStorage.setItem('tz_lastScreen', screen);
+    sessionStorage.setItem('tz_lastScreen', screen);
 
     if (screen === 'home') {
         home.style.display = 'flex';
