@@ -3848,8 +3848,13 @@ function renderDetallePortal(ficha, visitas, notas = []) {
             </div>`;
         }).join('');
 
-    // Buzones: nombres se muestran por puerta arriba; aquí solo queda el botón editar
-    document.getElementById('portalesBuzones').innerHTML = (ficha.buzones && ficha.buzones.trim())
+    // Buzones: nombres se muestran por puerta arriba; aquí solo queda el botón editar.
+    // "Completo" si hay texto en el campo Buzones del portal o si ya hay nombres
+    // cargados por puerta en Registros (columna Nombre_Buzón) — no depende de
+    // que se haya usado el editor de Portales para escribirlos.
+    const hayBuzonesCargados = (ficha.buzones && ficha.buzones.trim())
+        || puertasData.some(d => d.nombre_buzon && d.nombre_buzon.trim());
+    document.getElementById('portalesBuzones').innerHTML = hayBuzonesCargados
         ? ''
         : '<div class="portales-aviso-buzones">⚠ Buzones pendientes de completar</div>';
 
@@ -3869,8 +3874,9 @@ function renderDetallePortal(ficha, visitas, notas = []) {
     }
 
     // ── Puertas con datos de Taratura ──────────────────────────
-    const puertasCard = document.getElementById('portalesPuertasCard');
-    const puertasEl   = document.getElementById('portalesPuertas');
+    const puertasCard   = document.getElementById('portalesPuertasCard');
+    const puertasEl     = document.getElementById('portalesPuertas');
+    const puertasResEl  = document.getElementById('portalesPuertasResumen');
     if (puertasCard && puertasEl) {
         if (!puertasData.length) {
             puertasCard.style.display = 'none';
@@ -3914,8 +3920,27 @@ function renderDetallePortal(ficha, visitas, notas = []) {
                   ${d.info  ? `<div class="ptal-puerta-info">⚠️ ${d.info.substring(0, 80)}</div>` : ''}
                 </div>`;
             }).join('');
+
+            // Resumen: cuántas puertas abrieron (contactaron) sobre el total del portal
+            // Solo cuenta Estado = "Habitado". Si entre los indicios está "Mirilla"
+            // (miraron por la mirilla pero no abrieron), no se considera contacto.
+            if (puertasResEl) {
+                const totalPuertas = puertasData.length;
+                const abiertas     = puertasData.filter(d => {
+                    const estado    = (d.estado || '').trim();
+                    const indicios  = (d.info || '').split('|').map(s => s.trim());
+                    const porMirilla = indicios.includes('Mirilla');
+                    return estado === 'Habitado' && !porMirilla;
+                }).length;
+                const pct = totalPuertas ? Math.round(abiertas / totalPuertas * 100) : 0;
+                puertasResEl.innerHTML = `
+                    <span>🚪 ${abiertas} de ${totalPuertas} puertas abiertas</span>
+                    <span class="ptal-puertas-resumen-pct">${pct}%</span>`;
+                puertasResEl.style.display = '';
+            }
         }
     }
+    if (puertasResEl && !puertasData.length) puertasResEl.style.display = 'none';
 
     fichaPortalActual = ficha;
 }
@@ -4459,8 +4484,9 @@ function buzEditBuildListFromDoors(doors, buzonesText) {
 
     // Normalizar: el backend puede devolver Piso/piso y Puerta/puerta
     const normalized = doors.map(d => ({
-        piso:   (d.piso   || d.Piso   || '').toString().trim(),
-        puerta: (d.puerta || d.Puerta || '').toString().trim()
+        piso:        (d.piso         || d.Piso         || '').toString().trim(),
+        puerta:      (d.puerta       || d.Puerta       || '').toString().trim(),
+        nombreBuzon: (d.nombre_buzon || d.Nombre_Buzon || '').toString().trim()
     })).filter(d => d.piso && d.puerta);
 
     // Orden descendente por piso (más alto primero), luego puerta A-Z
@@ -4472,7 +4498,7 @@ function buzEditBuildListFromDoors(doors, buzonesText) {
     });
 
     let seqId = 0;
-    normalized.forEach(({ piso, puerta }) => {
+    normalized.forEach(({ piso, puerta, nombreBuzon }) => {
         seqId++;
         const did   = 'be' + seqId;
         const label = piso.replace(/º$/, '') + ' ' + puerta;
@@ -4490,7 +4516,10 @@ function buzEditBuildListFromDoors(doors, buzonesText) {
             </div>`;
         listEl.appendChild(row);
 
-        const names = existing[piso + ' ' + puerta] || existing[piso + puerta] || [];
+        // Prioridad: nombre ya cargado en Registros (columna Nombre_Buzón,
+        // p.ej. escrito directo en la hoja) sobre el texto guardado en el portal.
+        const fromRegistros = nombreBuzon ? nombreBuzon.split('/').map(s => s.trim()).filter(Boolean) : [];
+        const names = fromRegistros.length ? fromRegistros : (existing[piso + ' ' + puerta] || existing[piso + puerta] || []);
         names.forEach(n => addBuzEditChip(did, n));
     });
 
