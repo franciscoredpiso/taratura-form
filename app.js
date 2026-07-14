@@ -3688,7 +3688,7 @@ function renderPortalesList() {
             const vueltas       = p.total_vueltas > 0 ? ` V${p.total_vueltas}` : '';
             const fechaStr      = p.ultima_visita ? ' · ' + portalesFmtFecha(p.ultima_visita) : '';
             const obs           = String(p.observaciones || '').trim();
-            const sinBuzones    = !String(p.buzones || '').trim();
+            const sinBuzones    = !String(p.buzones || '').trim() && !p.tiene_buzon_puertas;
             html += `
               <div class="portales-item" onclick="abrirDetallePortal('${p.id_portal}')">
                 <span class="portales-numero">Nº ${p.numero}${sinBuzones ? ' <span class="portales-buzon-pendiente">Buzones</span>' : ''}</span>
