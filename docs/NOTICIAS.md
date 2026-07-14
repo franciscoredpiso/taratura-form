@@ -66,7 +66,7 @@ Se abre al tocar una tarjeta. Secciones:
 |-------|-------------|
 | Ficha_ID | Único, ej: F-1234567890 |
 | Clave | Calle\|\|Número\|\|Escalera\|\|Piso\|\|Puerta (minúsculas) |
-| Calle, Número, Escalera, Piso, Puerta | Dirección exacta |
+| Calle, Número, Escalera, Piso, Puerta | Dirección exacta. **Escalera es una foto fija**: se copia de `Registros` en el momento en que se crea la ficha (`procesarFichaNoticia`) y no se vuelve a sincronizar después. Si se corrige la columna Escalera en Registros más tarde, las fichas ya abiertas siguen mostrando el valor viejo — hay que corregirlas a mano en `Fichas_Noticias` si hace falta |
 | Fecha_Deteccion | Cuándo se detectó |
 | Propietario | Nombre encontrado |
 | Telefono | Del propietario |

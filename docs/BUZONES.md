@@ -50,7 +50,7 @@ No tiene pantalla propia. Se accede desde **Detalle de Portal → sección Buzon
 | Hoja | Operación |
 |------|-----------|
 | `Fichas_Portales` | Escribe el texto completo de buzones en columna `Buzones` |
-| `Registros` | Actualiza `Nombre_Buzón` (col S) en cada puerta del edificio que coincida |
+| `Registros` | Actualiza `Nombre_Buzón` (col S) en cada puerta del edificio que coincida. Si la ficha tiene `Escalera_Portal` informado (edificio con varias escaleras, ver `docs/PORTALES.md`), solo actualiza las puertas de esa escalera |
 
 ## Archivos en Drive
 Carpeta: `Taratura Fotos Buzones / {Zona} / {Calle} {Portal}`

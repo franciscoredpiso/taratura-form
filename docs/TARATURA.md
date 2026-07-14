@@ -85,7 +85,7 @@ Dividido en secciones:
 
 ## Efectos secundarios al guardar
 1. Si Estado = "Noticia": se crea/actualiza ficha en `Fichas_Noticias`
-2. Vinculación automática con portal existente por Calle+Número (si hay exactamente uno)
+2. Vinculación automática con portal existente por Calle+Número. Si hay más de un portal con la misma Calle+Número (edificio con varias escaleras, ver `docs/PORTALES.md`), se desambigua usando la Escalera/Bloque de la puerta tarada contra el campo `Escalera_Portal` de cada ficha; si no se puede identificar con certeza, no vincula automáticamente
 3. Si no existe portal para esa Calle+Número: se crea uno automáticamente
 
 ## Interacción con otros módulos
