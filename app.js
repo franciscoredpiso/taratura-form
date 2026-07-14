@@ -1686,7 +1686,7 @@ function noticiasFiltradas() {
 }
 
 function renderCard(n, i) {
-  const dir    = [limpiaTexto(n.calle), limpiaTexto(n.numero)].filter(Boolean).join(' ');
+  const dir    = [limpiaTexto(n.calle), getNumero(n)].filter(Boolean).join(' ');
   const ubi    = [limpiaTexto(n.escalera), limpiaTexto(n.piso), n.puerta ? `Puerta ${limpiaTexto(n.puerta)}` : ''].filter(Boolean).join(' · ');
   const prox   = noEsTexto(n.proxima_accion) ? formatFecha(n.proxima_accion) : (n.proxima_accion || '');
   const cuando = tiempoDesde(n.fecha_proxima_accion);
@@ -1757,7 +1757,7 @@ function renderLista() {
   if (agrupadoActivo) {
     const grupos = {};
     lista.forEach(({ n, i }) => {
-      const key = [limpiaTexto(n.calle), limpiaTexto(n.numero)].filter(Boolean).join(' ') || 'Sin dirección';
+      const key = [limpiaTexto(n.calle), getNumero(n)].filter(Boolean).join(' ') || 'Sin dirección';
       if (!grupos[key]) grupos[key] = [];
       grupos[key].push({ n, i });
     });
@@ -2204,7 +2204,7 @@ function renderReportes() {
   document.getElementById('repEstherList').innerHTML = esther.length
     ? esther.map(n => `
       <div class="rep-row">
-        <div class="rep-addr">${[n.calle, n.numero].filter(Boolean).join(' ')} · ${[n.escalera, n.piso, n.puerta].filter(Boolean).join(' ')}</div>
+        <div class="rep-addr">${[n.calle, getNumero(n)].filter(Boolean).join(' ')} · ${[n.escalera, n.piso, n.puerta].filter(Boolean).join(' ')}</div>
         <div class="rep-meta">${n.asesor || ''} · ${n.zona || ''}</div>
       </div>`).join('')
     : '<div style="padding:14px 16px;font-size:13px;color:#888">Sin solicitudes pendientes.</div>';
@@ -2213,7 +2213,7 @@ function renderReportes() {
   document.getElementById('repNotaList').innerHTML = notas.length
     ? notas.map(n => `
       <div class="rep-row">
-        <div class="rep-addr">${[n.calle, n.numero].filter(Boolean).join(' ')} · ${[n.escalera, n.piso, n.puerta].filter(Boolean).join(' ')}</div>
+        <div class="rep-addr">${[n.calle, getNumero(n)].filter(Boolean).join(' ')} · ${[n.escalera, n.piso, n.puerta].filter(Boolean).join(' ')}</div>
         <div class="rep-meta">${n.asesor || ''} · ${n.zona || ''}</div>
       </div>`).join('')
     : '<div style="padding:14px 16px;font-size:13px;color:#888">Sin notas simples solicitadas.</div>';
@@ -2582,7 +2582,11 @@ function buildProxAccion() {
 
 function noEsTexto(s) {
   // Detecta ISO dates u otros valores claramente no-textuales
-  return /^\d{4}-\d{2}-\d{2}T/.test(String(s || ''));
+  const str = String(s || '');
+  if (/^\d{4}-\d{2}-\d{2}T/.test(str)) return true;
+  // Detecta Date.toString() de JS (celda mal interpretada como fecha por Sheets)
+  if (/^[A-Z][a-z]{2} [A-Z][a-z]{2} \d{2} \d{4} \d{2}:\d{2}:\d{2}/.test(str)) return true;
+  return false;
 }
 function limpiaTexto(s) {
   return noEsTexto(s) ? '' : String(s || '').trim();
@@ -2648,7 +2652,7 @@ function ntOpenModal(name) {
   if (name === 'esther' && fichaData) {
     const f     = fichaData.ficha;
     const props = (fichaData.candidatos || []).filter(c => c.fuente === 'Inglobably');
-    const addr  = `${[f.calle, f.numero].filter(Boolean).join(' ')} · ${[f.escalera, f.piso, f.puerta].filter(Boolean).join(' ')}`;
+    const addr  = `${[f.calle, getNumero(f)].filter(Boolean).join(' ')} · ${[f.escalera, f.piso, f.puerta].filter(Boolean).join(' ')}`;
     let info = `<strong>${addr}</strong>`;
     if (props.length) {
       info += '<div style="margin-top:8px;font-size:11px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.4px">Propietarios identificados</div>';
@@ -4694,7 +4698,7 @@ function tzFormatFecha(f) {
 }
 
 function tzBuildAddr(n) {
-    const parts = [n.calle, n.numero].filter(Boolean).join(' ');
+    const parts = [n.calle, getNumero(n)].filter(Boolean).join(' ');
     const ubi   = [n.escalera, n.piso, n.puerta ? `Pta ${n.puerta}` : ''].filter(Boolean).join(' · ');
     return [parts, ubi].filter(Boolean).join(' · ');
 }
