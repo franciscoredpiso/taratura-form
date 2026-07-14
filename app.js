@@ -3691,7 +3691,7 @@ function renderPortalesList() {
             const sinBuzones    = !String(p.buzones || '').trim() && !p.tiene_buzon_puertas;
             html += `
               <div class="portales-item" onclick="abrirDetallePortal('${p.id_portal}')">
-                <span class="portales-numero">Nº ${p.numero}${sinBuzones ? ' <span class="portales-buzon-pendiente">Buzones</span>' : ''}</span>
+                <span class="portales-numero">Nº ${p.numero}${p.escalera_portal ? ` · Esc. ${p.escalera_portal}` : ''}${sinBuzones ? ' <span class="portales-buzon-pendiente">Buzones</span>' : ''}</span>
                 <span class="portales-estado-badge ${portalEstadoClass(p.estado_actual)}">${portalEstadoIcon(p.estado_actual)} ${p.estado_actual || 'Pendiente'}</span>
                 <span class="portales-meta">${vueltas}${fechaStr}</span>
                 ${obs ? `<span class="portales-item-obs">${obs}</span>` : ''}
@@ -3794,7 +3794,7 @@ function renderDetallePortal(ficha, visitas, notas = []) {
     ].filter(Boolean).join(' · ');
 
     document.getElementById('portalesDetailHeader').innerHTML = `
-        <div class="portales-detalle-titulo">${ficha.calle}, ${ficha.numero}</div>
+        <div class="portales-detalle-titulo">${ficha.calle}, ${ficha.numero}${ficha.escalera_portal ? ` · Escalera ${ficha.escalera_portal}` : ''}</div>
         ${caractLine  ? `<div class="portales-detalle-caract">${caractLine}</div>` : ''}
         ${detalleEdif ? `<div class="portales-detalle-edif">${detalleEdif}</div>` : ''}
         <div class="portales-detalle-estado ${portalEstadoClass(ficha.estado_actual)}">${portalEstadoIcon(ficha.estado_actual)} ${ficha.estado_actual || 'Pendiente'} · ${ficha.total_vueltas || 0} ${Number(ficha.total_vueltas) === 1 ? 'vuelta' : 'vueltas'}</div>
@@ -3804,6 +3804,7 @@ function renderDetallePortal(ficha, visitas, notas = []) {
     // Poblamos el card editable de edificio
     const edificioCard = document.getElementById('portalesEdificioCard');
     if (edificioCard) {
+        document.getElementById('portalEditEscaleraPortal').value = ficha.escalera_portal || '';
         document.getElementById('portalEditNotas').value    = ficha.notas_edificio  || '';
         document.getElementById('portalEditAdmin').value    = ficha.administrador   || '';
         document.getElementById('portalEditAdminTel').value = ficha.telefono_admin  || '';
@@ -3955,18 +3956,38 @@ function cerrarDetallePortal() {
 
 async function guardarDatosEdificio() {
     if (!fichaPortalActual) return;
-    const notas_ed      = document.getElementById('portalEditNotas').value.trim();
-    const admin_empresa = document.getElementById('portalEditAdmin').value.trim();
-    const admin_tel     = document.getElementById('portalEditAdminTel').value.trim();
+    const notas_ed        = document.getElementById('portalEditNotas').value.trim();
+    const admin_empresa   = document.getElementById('portalEditAdmin').value.trim();
+    const admin_tel       = document.getElementById('portalEditAdminTel').value.trim();
+    const escaleraPortal  = document.getElementById('portalEditEscaleraPortal').value.trim();
+    const escaleraCambio  = escaleraPortal !== (fichaPortalActual.escalera_portal || '');
     const btn = document.getElementById('btnGuardarEdificio');
     btn.disabled = true; btn.textContent = 'Guardando…';
     try {
+        // Si cambió la Escalera del portal, se guarda primero en la ficha
+        // (Fichas_Portales) para que el resto de la actualización ya use el
+        // valor correcto al filtrar las filas de Registros.
+        if (escaleraCambio) {
+            const resEsc = await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                body:   JSON.stringify({
+                    action:          'actualizar_portal',
+                    id_portal:       fichaPortalActual.id_portal,
+                    escalera_portal: escaleraPortal
+                })
+            });
+            const resultEsc = await resEsc.json();
+            if (!resultEsc.ok) throw new Error(resultEsc.error || 'Error guardando escalera');
+            fichaPortalActual.escalera_portal = escaleraPortal;
+        }
+
         const res    = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
             body:   JSON.stringify({
                 action:        'actualizar_datos_edificio',
                 calle:         fichaPortalActual.calle,
                 numero:        fichaPortalActual.numero,
+                escalera_portal: fichaPortalActual.escalera_portal || '',
                 notas_ed,
                 admin_empresa,
                 admin_tel,
@@ -3979,6 +4000,7 @@ async function guardarDatosEdificio() {
         fichaPortalActual.administrador  = admin_empresa;
         fichaPortalActual.telefono_admin = admin_tel;
         showToast('✓ Datos del edificio guardados');
+        if (escaleraCambio) await abrirDetallePortal(portalActual);
     } catch (err) {
         showToast('Error: ' + err.message);
     } finally {
@@ -4266,7 +4288,7 @@ async function eliminarPortal() {
 // ── Modal: nuevo portal ──────────────────────
 
 function abrirModalNuevoPortal() {
-    ['portalNuevoCalle','portalNuevoNumero','portalNuevoPlantas',
+    ['portalNuevoCalle','portalNuevoNumero','portalNuevoEscaleraPortal','portalNuevoPlantas',
      'portalNuevoPuertas','portalNuevoEscaleras','portalNuevoObs','portalNuevoEtiquetas']
         .forEach(id => { document.getElementById(id).value = ''; });
     document.getElementById('portalesNuevoModal').style.display = 'flex';
@@ -4286,6 +4308,7 @@ async function guardarNuevoPortal() {
             body:   JSON.stringify({
                 action:            'crear_portal',
                 asesor, zona, calle, numero,
+                escalera_portal:   document.getElementById('portalNuevoEscaleraPortal').value.trim(),
                 plantas:           document.getElementById('portalNuevoPlantas').value    || '',
                 puertas_planta:    document.getElementById('portalNuevoPuertas').value    || '',
                 escaleras:         document.getElementById('portalNuevoEscaleras').value  || '',
