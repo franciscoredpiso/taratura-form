@@ -3892,7 +3892,7 @@ function renderDetallePortal(ficha, visitas, notas = []) {
             });
 
             puertasData.sort((a, b) => {
-                const PISOS_L = ['Bajo','Entrepiso','Principal','1º','2º','3º','4º','5º','6º','7º','8º','9º','10º','11º','12º','13º','14º','15º','Ático','Sobreático'];
+                const PISOS_L = ['Bajo','Entrepiso','Entresuelo','Principal','1º','2º','3º','4º','5º','6º','7º','8º','9º','10º','11º','12º','13º','14º','15º','Ático','Sobreático'];
                 const ia = PISOS_L.indexOf(a.piso), ib = PISOS_L.indexOf(b.piso);
                 const na = ia >= 0 ? ia : 999, nb = ib >= 0 ? ib : 999;
                 if (na !== nb) return nb - na;
