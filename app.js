@@ -1714,7 +1714,12 @@ async function cargarNoticias() {
     </div>`;
   try {
     const data = await ntApi({ action: 'listar_noticias', asesor: asesorActual });
-    noticias = data.noticias || [];
+    const todas = data.noticias || [];
+    noticias = todas.filter(n => {
+      const na = String(n.asesor || '').toLowerCase().trim();
+      const yo = asesorActual.toLowerCase().trim();
+      return !na || !yo || na.includes(yo) || yo.includes(na);
+    });
     renderLista();
   } catch (err) {
     document.getElementById('listaCards').innerHTML = `
