@@ -4786,12 +4786,13 @@ async function tzCargarTareas() {
     try {
         const data = await tzApi({ action: 'listar_noticias', asesor: tzAsesor });
         const noticias = data.noticias || [];
-        tzTareasNoticias = noticias
+        const tareasFicha = noticias
             .filter(n => n.proxima_accion && n.proxima_accion.trim())
             .map(n => ({
                 id:         'NOT-' + n.ficha_id,
                 tipo:       'Noticia',
                 desc:       n.proxima_accion.trim(),
+                origDesc:   n.proxima_accion.trim(),
                 notas:      '',
                 fecha:      n.fecha_proxima_accion ? String(n.fecha_proxima_accion).split(/[T\s]/)[0] : '',
                 prioridad:  'Media',
@@ -4800,6 +4801,28 @@ async function tzCargarTareas() {
                 ficha_id:   n.ficha_id,
                 completada: false
             }));
+        // Tareas que vienen de la próxima acción de un candidato puntual
+        // (ej. "llamar a fulano"), no de la ficha en sí.
+        const tareasCandidato = [];
+        noticias.forEach(n => {
+            (n.candidatos_pendientes || []).forEach(c => {
+                tareasCandidato.push({
+                    id:         'CAND-' + n.ficha_id + '-' + c.row_num,
+                    tipo:       'Noticia',
+                    desc:       c.nombre ? `${c.proxima_accion} — ${c.nombre}` : c.proxima_accion,
+                    origDesc:   c.proxima_accion,
+                    notas:      c.telefono || '',
+                    fecha:      c.fecha_proxima_accion ? String(c.fecha_proxima_accion).split(/[T\s]/)[0] : '',
+                    prioridad:  'Media',
+                    asesor:     n.asesor,
+                    addr:       tzBuildAddr(n),
+                    ficha_id:   n.ficha_id,
+                    row_num:    c.row_num,
+                    completada: false
+                });
+            });
+        });
+        tzTareasNoticias = [...tareasFicha, ...tareasCandidato];
     } catch(err) {
         document.getElementById('tzTaskList').innerHTML =
             `<div class="tz-empty-state">
@@ -4974,7 +4997,20 @@ async function tzCompletarTarea(id) {
         const original = tzTareasNoticias.find(t => t.id === id);
         try {
             await tzApi({ action: 'actualizar_ficha_noticia', ficha_id, proxima_accion: '', fecha_proxima_accion: '' });
-            if (original) tzTareasNoticiasCompletadas.push({ ...original, completada: true, fechaCompletada: hoy, _orig_proxima: original.desc, _orig_fecha: original.fecha });
+            if (original) tzTareasNoticiasCompletadas.push({ ...original, completada: true, fechaCompletada: hoy, _orig_proxima: original.origDesc || original.desc, _orig_fecha: original.fecha });
+            tzTareasNoticias = tzTareasNoticias.filter(t => t.id !== id);
+            tzGuardarTareasLocales();
+            showToast('Tarea completada ✓');
+        } catch(err) {
+            showToast('Error: ' + err.message);
+            if (btn) { btn.disabled = false; btn.textContent = '✓ Listo'; }
+            return;
+        }
+    } else if (id.startsWith('CAND-')) {
+        const original = tzTareasNoticias.find(t => t.id === id);
+        try {
+            await tzApi({ action: 'registrar_seguimiento_candidato', ficha_id: original.ficha_id, row_num: original.row_num, proxima_accion: '', fecha_proxima_accion: '' });
+            if (original) tzTareasNoticiasCompletadas.push({ ...original, completada: true, fechaCompletada: hoy, _orig_proxima: original.origDesc || original.desc, _orig_fecha: original.fecha });
             tzTareasNoticias = tzTareasNoticias.filter(t => t.id !== id);
             tzGuardarTareasLocales();
             showToast('Tarea completada ✓');
@@ -5002,6 +5038,20 @@ async function tzReabrirTarea(id) {
         const ficha_id = id.replace('NOT-', '');
         try {
             await tzApi({ action: 'actualizar_ficha_noticia', ficha_id, proxima_accion: comp._orig_proxima || comp.desc, fecha_proxima_accion: comp._orig_fecha || '' });
+            tzTareasNoticias.push({ ...comp, completada: false, fechaCompletada: '' });
+            tzTareasNoticiasCompletadas = tzTareasNoticiasCompletadas.filter(t => t.id !== id);
+            tzGuardarTareasLocales();
+            showToast('Tarea reabierta ✓');
+        } catch(err) {
+            showToast('Error al reabrir: ' + err.message);
+            if (btn) { btn.disabled = false; btn.textContent = '↩ Reabrir'; }
+            return;
+        }
+    } else if (id.startsWith('CAND-')) {
+        const comp = tzTareasNoticiasCompletadas.find(t => t.id === id);
+        if (!comp) return;
+        try {
+            await tzApi({ action: 'registrar_seguimiento_candidato', ficha_id: comp.ficha_id, row_num: comp.row_num, proxima_accion: comp._orig_proxima || comp.desc, fecha_proxima_accion: comp._orig_fecha || '' });
             tzTareasNoticias.push({ ...comp, completada: false, fechaCompletada: '' });
             tzTareasNoticiasCompletadas = tzTareasNoticiasCompletadas.filter(t => t.id !== id);
             tzGuardarTareasLocales();
