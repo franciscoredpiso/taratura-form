@@ -2308,6 +2308,11 @@ async function guardarLlamada() {
     fechaProx   = document.getElementById('llamadaFechaProx').value;
   }
 
+  if (fechaProx && !proxAccion) {
+    showToast('Escribí qué hay que hacer en la próxima acción');
+    return;
+  }
+
   btn.disabled = true; btn.textContent = 'Guardando…';
   try {
     await ntApi({
