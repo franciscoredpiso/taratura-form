@@ -1518,6 +1518,7 @@ let asesorActual    = '';
 let noticias        = [];
 let fichaData       = null;
 let candidatoActivo = null;
+let ntPrioTarea     = 'Media';
 let filtroTexto     = '';
 let filtroEtapa     = '';
 let sortMode        = 'actividad';
@@ -1688,7 +1689,7 @@ function noticiasFiltradas() {
 function renderCard(n, i) {
   const dir    = [limpiaTexto(n.calle), getNumero(n)].filter(Boolean).join(' ');
   const ubi    = [limpiaTexto(n.escalera), limpiaTexto(n.piso), n.puerta ? `Puerta ${limpiaTexto(n.puerta)}` : ''].filter(Boolean).join(' · ');
-  const prox   = noEsTexto(n.proxima_accion) ? formatFecha(n.proxima_accion) : (n.proxima_accion || '');
+  const prox   = noEsTexto(n.proxima_accion) ? formatFecha(n.proxima_accion) : parseProximaAccion(n.proxima_accion).sinPrioridad;
   const cuando = tiempoDesde(n.fecha_proxima_accion);
   return `
   <div class="noticia-card" id="nt-card-${i}" onclick="abrirFichaNoticia(${i})">
@@ -2139,12 +2140,14 @@ function renderProximaAccion(ficha) {
   const pb = document.getElementById('proximaAccionBox');
   if (ficha.proxima_accion) {
     const cuando = tiempoDesde(ficha.fecha_proxima_accion);
+    const { prioridad, sinPrioridad } = parseProximaAccion(ficha.proxima_accion);
+    const prioClass = prioridad === 'Alta' ? 'tz-p-alta' : prioridad === 'Baja' ? 'tz-p-baja' : 'tz-p-media';
     pb.innerHTML = `
       <div class="prox-box">
         <div class="prox-box-row">
           <div>
-            <div class="prox-text">${ficha.proxima_accion}</div>
-            <div class="prox-fecha">${formatFecha(ficha.fecha_proxima_accion)}${cuando ? ' · ' + cuando : ''}</div>
+            <div class="prox-text">${sinPrioridad}</div>
+            <div class="prox-fecha">${formatFecha(ficha.fecha_proxima_accion)}${cuando ? ' · ' + cuando : ''} <span class="tz-prio-pill ${prioClass}" style="margin-left:4px">${prioridad}</span></div>
           </div>
           <button class="prox-edit-btn" onclick="abrirModalTarea()">Editar</button>
         </div>
@@ -2154,10 +2157,22 @@ function renderProximaAccion(ficha) {
   }
 }
 
+function onTareaTipoChange() {
+  const tipo = document.getElementById('tareaTipoAccion').value;
+  document.getElementById('tareaAccion').placeholder = TIPO_PLACEHOLDER[tipo] || 'Detalle…';
+}
+
+function ntSetPrio(p) { ntPrioTarea = p; tzActualizarPrioPicker('ntPo', p); }
+
 function abrirModalTarea() {
   const ficha = fichaData?.ficha;
   if (!ficha) return;
-  document.getElementById('tareaAccion').value = ficha.proxima_accion || '';
+  const { tipo, texto, prioridad } = parseProximaAccion(ficha.proxima_accion);
+  document.getElementById('tareaTipoAccion').value   = tipo || 'Llamada';
+  document.getElementById('tareaAccion').placeholder = TIPO_PLACEHOLDER[tipo || 'Llamada'] || 'Detalle…';
+  document.getElementById('tareaAccion').value       = texto;
+  ntPrioTarea = prioridad;
+  tzActualizarPrioPicker('ntPo', prioridad);
   document.getElementById('tareaFecha').value  = ficha.fecha_proxima_accion
     ? new Date(ficha.fecha_proxima_accion).toISOString().split('T')[0]
     : new Date().toISOString().split('T')[0];
@@ -2166,15 +2181,17 @@ function abrirModalTarea() {
 }
 
 async function guardarTarea() {
+  const tipo   = document.getElementById('tareaTipoAccion').value;
   const accion = document.getElementById('tareaAccion').value.trim();
   const fecha  = document.getElementById('tareaFecha').value;
   const desc   = document.getElementById('tareaDesc').value.trim();
   if (!accion) { showToast('Escribí qué hay que hacer'); return; }
+  const proximaAccion = buildProximaAccionTexto(tipo, accion, ntPrioTarea);
   const btn = document.getElementById('btnGuardarTarea');
   btn.disabled = true; btn.textContent = 'Guardando…';
   try {
     await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: fichaData.ficha.ficha_id,
-                  proxima_accion: accion, fecha_proxima_accion: fecha });
+                  proxima_accion: proximaAccion, fecha_proxima_accion: fecha });
     if (desc) {
       await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
                     autor: asesorActual, nota: `Tarea: ${accion}${desc ? ' — ' + desc : ''}` });
@@ -2607,6 +2624,29 @@ function buildProxAccion() {
   const texto = document.getElementById('llamadaProxAccion').value.trim();
   if (!texto) return '';
   return tipo + ': ' + texto;
+}
+
+// Próxima acción: no hay columna de Prioridad en Fichas_Noticias, así que la
+// urgencia (cuando no es 'Media') y el tipo viajan codificados en el mismo
+// texto: "[Alta] Visita: revisar portal". Estas funciones codifican/decodifican
+// ese formato para no tocar el spreadsheet ni el Apps Script.
+function parseProximaAccion(raw) {
+  const str = String(raw || '').trim();
+  let prioridad = 'Media';
+  let resto = str;
+  const mPrio = str.match(/^\[(Alta|Baja)\]\s*/);
+  if (mPrio) { prioridad = mPrio[1]; resto = str.slice(mPrio[0].length); }
+  let tipo = '';
+  let texto = resto;
+  const mTipo = resto.match(/^(Llamada|Visita|Gestión):\s*/);
+  if (mTipo) { tipo = mTipo[1]; texto = resto.slice(mTipo[0].length); }
+  return { prioridad, tipo, texto, sinPrioridad: resto };
+}
+
+function buildProximaAccionTexto(tipo, texto, prioridad) {
+  if (!texto) return '';
+  const base = tipo ? `${tipo}: ${texto}` : texto;
+  return (prioridad && prioridad !== 'Media') ? `[${prioridad}] ${base}` : base;
 }
 
 function noEsTexto(s) {
@@ -4817,21 +4857,24 @@ async function tzCargarTareas() {
         const noticias = (data.noticias || []).filter(n => esMiFicha(n, tzAsesor));
         const tareasFicha = noticias
             .filter(n => n.proxima_accion && n.proxima_accion.trim())
-            .map(n => ({
-                id:         'NOT-' + n.ficha_id,
-                tipo:       'Noticia',
-                desc:       n.proxima_accion.trim(),
-                origDesc:   n.proxima_accion.trim(),
-                notas:      '',
-                fecha:      n.fecha_proxima_accion ? String(n.fecha_proxima_accion).split(/[T\s]/)[0] : '',
-                prioridad:  'Media',
-                asesor:     n.asesor,
-                addr:       tzBuildAddr(n),
-                ficha_id:   n.ficha_id,
-                persona:    n.propietario || '',
-                telefono:   n.telefono || '',
-                completada: false
-            }));
+            .map(n => {
+                const { prioridad, sinPrioridad } = parseProximaAccion(n.proxima_accion);
+                return {
+                    id:         'NOT-' + n.ficha_id,
+                    tipo:       'Noticia',
+                    desc:       sinPrioridad,
+                    origDesc:   n.proxima_accion.trim(),
+                    notas:      '',
+                    fecha:      n.fecha_proxima_accion ? String(n.fecha_proxima_accion).split(/[T\s]/)[0] : '',
+                    prioridad,
+                    asesor:     n.asesor,
+                    addr:       tzBuildAddr(n),
+                    ficha_id:   n.ficha_id,
+                    persona:    n.propietario || '',
+                    telefono:   n.telefono || '',
+                    completada: false
+                };
+            });
         // Tareas que vienen de la próxima acción de un candidato puntual
         // (ej. "llamar a fulano"), no de la ficha en sí.
         const tareasCandidato = [];
