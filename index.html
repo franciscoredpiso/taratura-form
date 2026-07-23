@@ -707,7 +707,13 @@
 
   <!-- Datos de Taratura — antes del pipeline -->
   <div class="nt-section" id="secTaratura" style="display:none;margin:0;border-radius:0;border-left:none;border-right:none">
-    <div class="sec-hdr" onclick="ntToggleSec(this)">Datos de Taratura <span>▾</span></div>
+    <div class="sec-hdr" onclick="ntToggleSec(this)">
+      <span>Datos de Taratura</span>
+      <span style="display:flex;align-items:center;gap:8px">
+        <button class="prox-edit-btn" onclick="event.stopPropagation();abrirEditarDatosTaratura()">✏️ Editar</button>
+        <span>▾</span>
+      </span>
+    </div>
     <div class="sec-body" id="datosTaraturaBox"></div>
   </div>
 
@@ -1051,6 +1057,36 @@
     <div class="nt-modal-actions">
       <button class="nt-btn-cancel" onclick="ntCloseModal('tarea')">Cancelar</button>
       <button class="nt-btn-primary" id="btnGuardarTarea" onclick="guardarTarea()">Guardar tarea</button>
+    </div>
+  </div>
+</div>
+
+<div class="nt-modal-overlay" id="nt-modal-datosTaratura">
+  <div class="nt-modal">
+    <div class="nt-modal-title">Editar datos de Taratura</div>
+    <div class="nt-form-group">
+      <label>Información adicional</label>
+      <textarea id="dtInfoAdic" placeholder="Indicios, señales…"></textarea>
+    </div>
+    <div class="nt-form-group">
+      <label>Observaciones</label>
+      <textarea id="dtObserv" placeholder="Observaciones de la puerta…"></textarea>
+    </div>
+    <div class="nt-form-group">
+      <label>Nombre vecino</label>
+      <input type="text" id="dtNombre" placeholder="Si lo hay">
+    </div>
+    <div class="nt-form-group">
+      <label>Teléfono</label>
+      <input type="text" id="dtTelefono" placeholder="Si lo hay">
+    </div>
+    <div class="nt-form-group">
+      <label>Nombre en buzón</label>
+      <input type="text" id="dtNombreBuzon" placeholder="Tal como aparece en el buzón">
+    </div>
+    <div class="nt-modal-actions">
+      <button class="nt-btn-cancel" onclick="ntCloseModal('datosTaratura')">Cancelar</button>
+      <button class="nt-btn-primary" id="btnGuardarDatosTaratura" onclick="guardarDatosTaratura()">Guardar</button>
     </div>
   </div>
 </div>

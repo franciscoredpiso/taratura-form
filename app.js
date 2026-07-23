@@ -1928,10 +1928,11 @@ function renderPanelRapido(ficha, candidatos, seguimiento) {
     </div>`);
   if (ficha.proxima_accion) {
     const cuando = tiempoDesde(ficha.fecha_proxima_accion);
+    const { sinPrioridad } = parseProximaAccion(ficha.proxima_accion);
     parts.push(`
       <div class="pr-item full">
         <div class="pr-item-label">Próxima acción</div>
-        <div class="pr-item-val">${ficha.proxima_accion}</div>
+        <div class="pr-item-val">${sinPrioridad}</div>
         <div class="pr-item-sub" style="color:#1d4ed8;font-weight:600">${formatFecha(ficha.fecha_proxima_accion)}${cuando ? ' · ' + cuando : ''}</div>
       </div>`);
   }
@@ -1941,52 +1942,76 @@ function renderPanelRapido(ficha, candidatos, seguimiento) {
 function renderDatosTaratura(ficha) {
   const sec = document.getElementById('secTaratura');
   const box = document.getElementById('datosTaraturaBox');
-  const partes = [];
+  sec.style.display = '';
 
-  // Contacto registrado en esa puerta (si el vínculo es relevante)
-  const vincIgnorar = ['sospechoso (parece vacío)', 'noticia', 'sin vínculo', ''];
-  const vinc = (ficha.reg_vinculo || '').trim();
-  if (vinc && !vincIgnorar.includes(vinc.toLowerCase())) {
-    partes.push(`
-      <div style="margin-bottom:10px">
-        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Contacto registrado</div>
-        <div style="font-weight:600">${ficha.reg_nombre || '—'}</div>
-        <div style="font-size:12px;color:#64748b">${vinc}</div>
-        ${ficha.reg_telefono ? `<div style="font-size:13px;margin-top:2px">${ficha.reg_telefono}</div>` : ''}
-      </div>`);
-  }
+  const campo = (label, val) => `
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">${label}</div>
+      <div style="font-size:13px;${val ? 'color:#334155' : 'color:#94a3b8;font-style:italic'}">${escHtml(val) || 'Sin datos'}</div>
+    </div>`;
 
-  // Administrador del edificio
+  let html = '';
+  html += campo('Información adicional', ficha.reg_info_adic);
+  html += campo('Observaciones',         ficha.reg_observ);
+  html += campo('Nombre vecino',         ficha.reg_nombre);
+  html += campo('Teléfono',              ficha.reg_telefono);
+  html += campo('Nombre en buzón',       ficha.reg_nombre_buzon);
+
+  // Bonus: datos del edificio ya disponibles en la misma fila de Registros
   if (ficha.reg_admin_empresa || ficha.reg_admin_tel) {
-    partes.push(`
+    html += `
       <div style="margin-bottom:10px">
         <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Administrador del edificio</div>
-        ${ficha.reg_admin_empresa ? `<div style="font-weight:600">${ficha.reg_admin_empresa}</div>` : ''}
-        ${ficha.reg_admin_tel    ? `<div style="font-size:13px">${ficha.reg_admin_tel}</div>` : ''}
-      </div>`);
+        ${ficha.reg_admin_empresa ? `<div style="font-weight:600">${escHtml(ficha.reg_admin_empresa)}</div>` : ''}
+        ${ficha.reg_admin_tel    ? `<div style="font-size:13px">${escHtml(ficha.reg_admin_tel)}</div>` : ''}
+      </div>`;
   }
-
-  // Notas y observaciones
-  const notas = [ficha.reg_notas_ed, ficha.reg_observ, ficha.reg_info_adic].filter(Boolean);
-  if (notas.length) {
-    partes.push(`
-      <div style="margin-bottom:10px">
-        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Notas</div>
-        ${notas.map(n => `<div style="font-size:13px;color:#334155;margin-bottom:3px">${n}</div>`).join('')}
-      </div>`);
+  if (ficha.reg_notas_ed) {
+    html += campo('Notas del edificio', ficha.reg_notas_ed);
   }
-
-  // Carta en buzón
   if (ficha.reg_carta) {
-    partes.push(`<div style="font-size:12px;color:#92400e;background:#fef3c7;padding:6px 10px;border-radius:6px;margin-bottom:8px">Carta en buzón: ${ficha.reg_carta}</div>`);
+    html += `<div style="font-size:12px;color:#92400e;background:#fef3c7;padding:6px 10px;border-radius:6px;margin-bottom:8px">Carta en buzón: ${escHtml(ficha.reg_carta)}</div>`;
   }
 
-  if (partes.length) {
-    box.innerHTML = partes.join('');
-    sec.style.display = '';
-  } else {
-    sec.style.display = 'none';
-  }
+  box.innerHTML = html;
+}
+
+function abrirEditarDatosTaratura() {
+  const ficha = fichaData?.ficha;
+  if (!ficha) return;
+  document.getElementById('dtInfoAdic').value    = ficha.reg_info_adic     || '';
+  document.getElementById('dtObserv').value      = ficha.reg_observ        || '';
+  document.getElementById('dtNombre').value      = ficha.reg_nombre       || '';
+  document.getElementById('dtTelefono').value    = ficha.reg_telefono     || '';
+  document.getElementById('dtNombreBuzon').value = ficha.reg_nombre_buzon || '';
+  ntOpenModal('datosTaratura');
+}
+
+async function guardarDatosTaratura() {
+  const ficha = fichaData?.ficha;
+  if (!ficha) return;
+  const btn = document.getElementById('btnGuardarDatosTaratura');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    await ntApi({
+      action:        'actualizar_puerta',
+      calle:         ficha.calle,
+      numero:        ficha.numero,
+      escalera:      ficha.escalera,
+      piso:          ficha.piso,
+      puerta:        ficha.puerta,
+      info_adic:     document.getElementById('dtInfoAdic').value.trim(),
+      observaciones: document.getElementById('dtObserv').value.trim(),
+      nombre:        document.getElementById('dtNombre').value.trim(),
+      telefono:      document.getElementById('dtTelefono').value.trim(),
+      nombre_buzon:  document.getElementById('dtNombreBuzon').value.trim(),
+      autor:         asesorActual
+    });
+    ntCloseModal('datosTaratura');
+    showToast('✓ Datos de Taratura actualizados');
+    await recargarFicha();
+  } catch(err) { showToast('Error: ' + err.message); }
+  finally { btn.disabled = false; btn.textContent = 'Guardar'; }
 }
 
 function renderInglobably(ficha, seguimiento) {
@@ -4925,7 +4950,7 @@ function tzPendientesFiltradas() {
         case 'vencidas': return lista.filter(t => t.fecha && t.fecha < hoy);
         case 'hoy':      return lista.filter(t => t.fecha === hoy);
         case 'manana':   return lista.filter(t => t.fecha === man);
-        case 'semana':   return lista.filter(t => t.fecha && t.fecha >= hoy && t.fecha <= proxSemana);
+        case 'semana':   return lista.filter(t => t.fecha && t.fecha > man && t.fecha <= proxSemana);
         case 'sinfecha': return lista.filter(t => !t.fecha);
         default:         return lista;
     }
