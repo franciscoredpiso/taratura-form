@@ -2303,8 +2303,10 @@ function onProgramarAccionChange() {
   document.getElementById('llamadaProxGroup').style.display = on ? '' : 'none';
 }
 
-// Convierte fecha_proxima_accion (ISO o Date.toString() mal guardado por Sheets) a 'YYYY-MM-DD' local
-function tzFechaCandidatoAIso(fp) {
+// Convierte una fecha de Sheets (ISO o Date.toString() mal guardado) a 'YYYY-MM-DD' local.
+// Sheets a veces devuelve la celda como Date.toString() (ej. "Fri Jul 24 2026 00:00:00 GMT+0200…"),
+// que un split ingenuo por espacio/T corta en el día de la semana ("Fri") en vez de la fecha.
+function fechaSheetAIso(fp) {
   if (!fp) return '';
   const str = String(fp);
   if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
@@ -2325,7 +2327,7 @@ function abrirLlamada(rowNum) {
   document.getElementById('llamadaTipoAccion').value       = 'Llamada';
   document.getElementById('llamadaProxAccion').placeholder = TIPO_PLACEHOLDER['Llamada'];
   document.getElementById('llamadaProxAccion').value       = candidatoActivo.proxima_accion || '';
-  document.getElementById('llamadaFechaProx').value = tzFechaCandidatoAIso(candidatoActivo.fecha_proxima_accion) || new Date().toISOString().split('T')[0];
+  document.getElementById('llamadaFechaProx').value = fechaSheetAIso(candidatoActivo.fecha_proxima_accion) || new Date().toISOString().split('T')[0];
   document.getElementById('llamadaProgramar').checked = !!(candidatoActivo.proxima_accion && candidatoActivo.proxima_accion.trim());
   onSuenaChange();
   ntOpenModal('llamada');
@@ -4870,7 +4872,7 @@ async function tzCargarTareas() {
                     desc:       sinPrioridad,
                     origDesc:   n.proxima_accion.trim(),
                     notas:      '',
-                    fecha:      n.fecha_proxima_accion ? String(n.fecha_proxima_accion).split(/[T\s]/)[0] : '',
+                    fecha:      fechaSheetAIso(n.fecha_proxima_accion),
                     prioridad,
                     asesor:     n.asesor,
                     addr:       tzBuildAddr(n),
@@ -4891,7 +4893,7 @@ async function tzCargarTareas() {
                     desc:       c.proxima_accion,
                     origDesc:   c.proxima_accion,
                     notas:      '',
-                    fecha:      c.fecha_proxima_accion ? String(c.fecha_proxima_accion).split(/[T\s]/)[0] : '',
+                    fecha:      fechaSheetAIso(c.fecha_proxima_accion),
                     prioridad:  'Media',
                     asesor:     n.asesor,
                     addr:       tzBuildAddr(n),
