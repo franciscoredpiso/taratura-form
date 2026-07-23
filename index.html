@@ -1023,7 +1023,22 @@
     <div class="nt-modal-title">Próxima acción</div>
     <div class="nt-form-group">
       <label>Qué hay que hacer</label>
-      <input type="text" id="tareaAccion" placeholder="Ej: Llamar a Ana García, buscar en Inglobably…">
+      <div style="display:flex;gap:6px;align-items:center">
+        <select id="tareaTipoAccion" onchange="onTareaTipoChange()" style="flex:0 0 auto;width:auto;font-size:13px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#334155">
+          <option value="Llamada">📞 Llamada</option>
+          <option value="Visita">🚶 Visita</option>
+          <option value="Gestión">📋 Gestión</option>
+        </select>
+        <input type="text" id="tareaAccion" placeholder="Ej: Llamar a Ana García, buscar en Inglobably…" style="flex:1">
+      </div>
+    </div>
+    <div class="nt-form-group">
+      <label>Urgencia</label>
+      <div class="tz-prio-picker">
+        <button type="button" class="tz-prio-opt" id="ntPoAlta"  onclick="ntSetPrio('Alta')">🔴 Alta</button>
+        <button type="button" class="tz-prio-opt tz-sel-media" id="ntPoMedia" onclick="ntSetPrio('Media')">🟡 Media</button>
+        <button type="button" class="tz-prio-opt" id="ntPoBaja"  onclick="ntSetPrio('Baja')">🟢 Baja</button>
+      </div>
     </div>
     <div class="nt-form-group">
       <label>Descripción (opcional)</label>
