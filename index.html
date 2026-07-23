@@ -267,6 +267,10 @@
   width: 100%; padding: 10px 12px; border: 1.5px solid var(--nt-border); border-radius: 8px;
   font-size: 14px; font-family: inherit; background: white; color: var(--nt-text); box-sizing: border-box; }
 .nt-form-group textarea { height: 70px; resize: none; }
+.nt-checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 14px;
+                   font-weight: 600; color: var(--nt-text); cursor: pointer; }
+.nt-checkbox-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--nt-primary);
+                                           cursor: pointer; flex-shrink: 0; }
 .nt-modal-actions { display: flex; gap: 8px; margin-top: 16px; }
 .nt-btn-primary { flex: 1; background: var(--nt-primary); color: white; border: none; padding: 12px;
                   border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
@@ -813,11 +817,17 @@
       <label>Notas</label>
       <textarea id="llamadaNotas" placeholder="Qué pasó en la llamada…"></textarea>
     </div>
-    <div id="llamadaProxGroup">
+    <div class="nt-form-group" id="llamadaProgramarWrap">
+      <label class="nt-checkbox-row">
+        <input type="checkbox" id="llamadaProgramar" onchange="onProgramarAccionChange()">
+        Programar una próxima acción
+      </label>
+    </div>
+    <div id="llamadaProxGroup" style="display:none">
       <div class="nt-form-group">
-        <label>Próxima acción</label>
+        <label>Qué hay que hacer</label>
         <div style="display:flex;gap:6px;align-items:center">
-          <select id="llamadaTipoAccion" onchange="onTipoAccionChange()" style="flex:0 0 auto;font-size:13px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#334155">
+          <select id="llamadaTipoAccion" onchange="onTipoAccionChange()" style="flex:0 0 auto;width:auto;font-size:13px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#334155">
             <option value="Llamada">📞 Llamada</option>
             <option value="Visita">🚶 Visita</option>
             <option value="Gestión">📋 Gestión</option>
