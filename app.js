@@ -1706,6 +1706,14 @@ function renderCard(n, i) {
   </div>`;
 }
 
+// Determina si una ficha de Noticias le pertenece al asesor dado (comparación
+// laxa por substring para tolerar variaciones de escritura del nombre).
+function esMiFicha(n, asesor) {
+  const na = String((n && n.asesor) || '').toLowerCase().trim();
+  const yo = String(asesor || '').toLowerCase().trim();
+  return !na || !yo || na.includes(yo) || yo.includes(na);
+}
+
 async function cargarNoticias() {
   document.getElementById('listaCards').innerHTML = `
     <div class="nt-empty-state">
@@ -1715,11 +1723,7 @@ async function cargarNoticias() {
   try {
     const data = await ntApi({ action: 'listar_noticias', asesor: asesorActual });
     const todas = data.noticias || [];
-    noticias = todas.filter(n => {
-      const na = String(n.asesor || '').toLowerCase().trim();
-      const yo = asesorActual.toLowerCase().trim();
-      return !na || !yo || na.includes(yo) || yo.includes(na);
-    });
+    noticias = todas.filter(n => esMiFicha(n, asesorActual));
     renderLista();
   } catch (err) {
     document.getElementById('listaCards').innerHTML = `
@@ -2267,7 +2271,31 @@ async function confirmarEtapa() {
 function onSuenaChange() {
   const v = document.getElementById('llamadaSuena').value;
   document.getElementById('llamadaResultadoGroup').style.display = (v === 'Si') ? '' : 'none';
-  document.getElementById('llamadaProxGroup').style.display      = (v === 'No existe') ? 'none' : '';
+  const noExiste = v === 'No existe';
+  document.getElementById('llamadaProgramarWrap').style.display = noExiste ? 'none' : '';
+  if (noExiste) {
+    document.getElementById('llamadaProgramar').checked = false;
+    document.getElementById('llamadaProxGroup').style.display = 'none';
+  } else {
+    onProgramarAccionChange();
+  }
+}
+
+function onProgramarAccionChange() {
+  const on = document.getElementById('llamadaProgramar').checked;
+  document.getElementById('llamadaProxGroup').style.display = on ? '' : 'none';
+}
+
+// Convierte fecha_proxima_accion (ISO o Date.toString() mal guardado por Sheets) a 'YYYY-MM-DD' local
+function tzFechaCandidatoAIso(fp) {
+  if (!fp) return '';
+  const str = String(fp);
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
+  const d = new Date(str);
+  if (isNaN(d)) return '';
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
 function abrirLlamada(rowNum) {
@@ -2280,10 +2308,8 @@ function abrirLlamada(rowNum) {
   document.getElementById('llamadaTipoAccion').value       = 'Llamada';
   document.getElementById('llamadaProxAccion').placeholder = TIPO_PLACEHOLDER['Llamada'];
   document.getElementById('llamadaProxAccion').value       = candidatoActivo.proxima_accion || '';
-  const fp = candidatoActivo.fecha_proxima_accion;
-  document.getElementById('llamadaFechaProx').value = fp
-    ? (String(fp).includes('T') ? String(fp).split('T')[0] : String(fp).slice(0,10))
-    : new Date().toISOString().split('T')[0];
+  document.getElementById('llamadaFechaProx').value = tzFechaCandidatoAIso(candidatoActivo.fecha_proxima_accion) || new Date().toISOString().split('T')[0];
+  document.getElementById('llamadaProgramar').checked = !!(candidatoActivo.proxima_accion && candidatoActivo.proxima_accion.trim());
   onSuenaChange();
   ntOpenModal('llamada');
 }
@@ -2293,19 +2319,22 @@ async function guardarLlamada() {
   const btn   = document.getElementById('btnGuardarLlamada');
   const suena = document.getElementById('llamadaSuena').value;
 
+  const programar = document.getElementById('llamadaProgramar').checked;
+
   let estadoNuevo, proxAccion, fechaProx;
   if (suena === 'No existe') {
     estadoNuevo = 'Descartado';
     proxAccion  = '';
     fechaProx   = '';
-  } else if (suena === 'No disponible') {
-    estadoNuevo = candidatoActivo.estado || 'Pendiente';
-    proxAccion  = buildProxAccion();
-    fechaProx   = document.getElementById('llamadaFechaProx').value;
   } else {
-    estadoNuevo = document.getElementById('llamadaEstado').value;
-    proxAccion  = buildProxAccion();
-    fechaProx   = document.getElementById('llamadaFechaProx').value;
+    estadoNuevo = (suena === 'No disponible') ? (candidatoActivo.estado || 'Pendiente') : document.getElementById('llamadaEstado').value;
+    proxAccion  = programar ? buildProxAccion() : '';
+    fechaProx   = programar ? document.getElementById('llamadaFechaProx').value : '';
+  }
+
+  if (programar && !proxAccion) {
+    showToast('Escribí qué hay que hacer en la próxima acción');
+    return;
   }
 
   btn.disabled = true; btn.textContent = 'Guardando…';
@@ -4785,7 +4814,7 @@ async function tzCargarTareas() {
         '<div class="tz-empty-state"><div class="tz-spinner"></div>Cargando tareas…</div>';
     try {
         const data = await tzApi({ action: 'listar_noticias', asesor: tzAsesor });
-        const noticias = data.noticias || [];
+        const noticias = (data.noticias || []).filter(n => esMiFicha(n, tzAsesor));
         const tareasFicha = noticias
             .filter(n => n.proxima_accion && n.proxima_accion.trim())
             .map(n => ({
@@ -4799,6 +4828,8 @@ async function tzCargarTareas() {
                 asesor:     n.asesor,
                 addr:       tzBuildAddr(n),
                 ficha_id:   n.ficha_id,
+                persona:    n.propietario || '',
+                telefono:   n.telefono || '',
                 completada: false
             }));
         // Tareas que vienen de la próxima acción de un candidato puntual
@@ -4809,15 +4840,17 @@ async function tzCargarTareas() {
                 tareasCandidato.push({
                     id:         'CAND-' + n.ficha_id + '-' + c.row_num,
                     tipo:       'Noticia',
-                    desc:       c.nombre ? `${c.proxima_accion} — ${c.nombre}` : c.proxima_accion,
+                    desc:       c.proxima_accion,
                     origDesc:   c.proxima_accion,
-                    notas:      c.telefono || '',
+                    notas:      '',
                     fecha:      c.fecha_proxima_accion ? String(c.fecha_proxima_accion).split(/[T\s]/)[0] : '',
                     prioridad:  'Media',
                     asesor:     n.asesor,
                     addr:       tzBuildAddr(n),
                     ficha_id:   n.ficha_id,
                     row_num:    c.row_num,
+                    persona:    c.nombre || '',
+                    telefono:   c.telefono || '',
                     completada: false
                 });
             });
@@ -4965,11 +4998,14 @@ function tzRenderCard(t, esCompletada = false) {
         </div>`;
     }
 
+    const telHref = t.telefono ? String(t.telefono).replace(/\s+/g, '') : '';
+
     return `
     <div class="${cardCls}" id="tz-card-${safeId}">
       <div class="tz-card-top">
         <div class="tz-card-left">
           <div class="tz-card-desc">${escHtml(t.desc)}</div>
+          ${(t.persona || t.telefono) ? `<div class="tz-card-contacto">👤 ${escHtml(t.persona || 'Sin nombre')}${t.telefono ? ` · <a href="tel:${telHref}" onclick="event.stopPropagation()">📞 ${escHtml(t.telefono)}</a>` : ''}</div>` : ''}
           ${(t.addr || t.puerta_addr) ? `<div class="tz-card-addr">📍 ${escHtml(t.addr || t.puerta_addr)}${t.puerta_est ? ' <span style="font-size:10px;color:#888">· ' + escHtml(t.puerta_est) + '</span>' : ''}</div>` : ''}
           ${t.notas ? `<div class="tz-card-addr" style="margin-top:4px;font-style:italic">${escHtml(t.notas)}</div>` : ''}
         </div>
@@ -4979,10 +5015,25 @@ function tzRenderCard(t, esCompletada = false) {
         </div>
       </div>
       <div class="tz-card-bottom">
-        <span class="tz-tipo-badge ${tipoClass}">${t.tipo}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="tz-tipo-badge ${tipoClass}">${t.tipo}</span>
+          ${t.ficha_id ? `<button class="tz-btn-verficha" onclick="tzVerFicha('${t.ficha_id}')">Ver ficha →</button>` : ''}
+        </div>
         ${btnsHtml}
       </div>
     </div>`;
+}
+
+// ── Ir a la ficha de Noticias desde una tarea ─
+async function tzVerFicha(fichaId) {
+    if (!fichaId) return;
+    showScreen('noticias');
+    try {
+        await cargarNoticias();
+    } catch (e) { return; }
+    const idx = noticias.findIndex(n => n.ficha_id === fichaId);
+    if (idx === -1) { showToast('No se encontró la ficha'); return; }
+    abrirFichaNoticia(idx);
 }
 
 // ── Acciones ──────────────────────────────────

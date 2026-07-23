@@ -1757,6 +1757,9 @@
         .tz-card-left { flex: 1; min-width: 0; }
         .tz-card-desc { font-size: 14px; font-weight: 700; line-height: 1.4; word-break: break-word; }
         .tz-card-addr { font-size: 12px; color: #888; margin-top: 3px; }
+        .tz-card-contacto { font-size: 12.5px; color: #374151; margin-top: 4px; font-weight: 600; }
+        .tz-card-contacto a { color: #1d4ed8; text-decoration: none; }
+        .tz-card-contacto a:hover { text-decoration: underline; }
         .tz-card-right { display: flex; flex-direction: column; align-items: flex-end;
                          gap: 5px; flex-shrink: 0; }
         .tz-prio-pill {
@@ -1779,6 +1782,11 @@
         }
         .tz-t-noticia { background: #e0e7ff; color: #3730a3; }
         .tz-t-general { background: #f3f4f6; color: #374151; }
+        .tz-btn-verficha {
+            font-size: 11px; font-weight: 700; color: #3730a3; background: #e0e7ff;
+            border: none; border-radius: 6px; padding: 3px 8px; cursor: pointer;
+        }
+        .tz-btn-verficha:hover { background: #c7d2fe; }
         .tz-btn-completar {
             font-size: 12px; font-weight: 700; color: #15803d; background: #dcfce7;
             border: none; border-radius: 6px; padding: 5px 10px; cursor: pointer;
