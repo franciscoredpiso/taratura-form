@@ -1885,13 +1885,15 @@ function renderPanelRapido(ficha, candidatos, seguimiento) {
       </div>`);
   }
   const ingProps  = (candidatos || []).filter(c => c.fuente === 'Inglobably');
-  const firstProp = ingProps[0];
+  // Preferí mostrar un propietario vivo (más accionable); si no hay, mostrá el que sea.
+  const firstProp = ingProps.find(p => p.estado !== 'Fallecido') || ingProps[0];
+  const propFallecido = firstProp && firstProp.estado === 'Fallecido';
   const propLabel = ingProps.length ? `Propietarios (${ingProps.length}) ›` : 'Propietarios ›';
   parts.push(`
     <div class="pr-item pr-item-btn" onclick="abrirPropietariosPanel()" title="Ver propietarios">
       <div class="pr-item-label">${propLabel}</div>
       ${firstProp
-        ? `<div class="pr-item-val">${firstProp.nombre}${ingProps.length > 1 ? `<span style="font-size:11px;color:#888;font-weight:400"> +${ingProps.length - 1} más</span>` : ''}</div>
+        ? `<div class="pr-item-val"${propFallecido ? ' style="color:#64748b"' : ''}>${propFallecido ? '☠️ ' : ''}${firstProp.nombre}${ingProps.length > 1 ? `<span style="font-size:11px;color:#888;font-weight:400"> +${ingProps.length - 1} más</span>` : ''}</div>
            <div class="pr-item-sub">${firstProp.nif ? 'NIF: ' + firstProp.nif : '<span style="color:#888;font-style:italic">Sin NIF</span>'}</div>`
         : `<div class="pr-item-placeholder">Toca para agregar</div>`}
     </div>`);
@@ -2058,22 +2060,26 @@ function renderPropietariosPanel() {
       </div>`;
     return;
   }
-  box.innerHTML = lista.map(p => `
-    <div style="padding:14px 0;border-bottom:1px solid #f1f5f9">
+  box.innerHTML = lista.map(p => {
+    const fallecido = p.estado === 'Fallecido';
+    return `
+    <div style="padding:14px 0;border-bottom:1px solid #f1f5f9${fallecido ? ';opacity:.55' : ''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div>
-          <div style="font-weight:700;font-size:15px">${p.nombre || '—'}</div>
+          <div style="font-weight:700;font-size:15px${fallecido ? ';color:#64748b' : ''}">${fallecido ? '☠️ ' : ''}${p.nombre || '—'}</div>
           ${p.nif      ? `<div style="font-size:12px;color:#64748b">NIF: ${p.nif}</div>` : ''}
           ${p.parentesco ? `<div style="font-size:12px;color:#64748b">${p.parentesco}</div>` : ''}
-          ${p.telefono ? `<div style="font-size:13px;margin-top:3px;font-weight:600">${p.telefono}</div>` : ''}
+          ${p.telefono ? `<div style="font-size:13px;margin-top:3px;font-weight:600${fallecido ? ';color:#64748b' : ''}">${p.telefono}</div>` : ''}
           ${p.fecha_nacimiento ? `<div style="font-size:12px;color:#94a3b8">Nacimiento: ${String(p.fecha_nacimiento).slice(0,10)}</div>` : ''}
+          ${fallecido ? `<div style="font-size:11px;color:#94a3b8;font-style:italic;margin-top:2px">Falleció — buscar herederos</div>` : ''}
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0;margin-left:10px">
           <button class="btn-sm" onclick="ntCloseModal('propietariosPanel');abrirEditarPropietario(${p.row_num})">Editar</button>
           <button class="btn-sm" style="background:#fee2e2;border-color:#fca5a5;color:#b91c1c" onclick="eliminarPropietario(${p.row_num})">Borrar</button>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ── Candidatos ──────────────────────────────────────────────────────────────
@@ -2455,6 +2461,7 @@ function abrirAgregarPropietario() {
   document.getElementById('btnGuardarProp').textContent = 'Agregar';
   ['propNombre','propNIF','propTel','propFechaNac'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('propParentesco').value = '';
+  document.getElementById('propFallecido').checked = false;
   ntOpenModal('addProp');
 }
 
@@ -2469,6 +2476,7 @@ function abrirEditarPropietario(rowNum) {
   document.getElementById('propNIF').value         = p.nif           || '';
   document.getElementById('propParentesco').value  = p.parentesco    || '';
   document.getElementById('propTel').value         = p.telefono      || '';
+  document.getElementById('propFallecido').checked = p.estado === 'Fallecido';
   const fn = p.fecha_nacimiento;
   document.getElementById('propFechaNac').value = fn
     ? (String(fn).includes('T') ? String(fn).split('T')[0] : String(fn).slice(0, 10))
@@ -2482,6 +2490,8 @@ async function guardarPropietario() {
   const parentesco       = document.getElementById('propParentesco').value;
   const fecha_nacimiento = document.getElementById('propFechaNac').value;
   const tel              = document.getElementById('propTel').value.trim();
+  const fallecido        = document.getElementById('propFallecido').checked;
+  const estado           = fallecido ? 'Fallecido' : 'Pendiente';
   const rowNum           = document.getElementById('propRowNum').value;
   if (!nombre) { showToast('El nombre es obligatorio'); return; }
   const esEdicion = !!rowNum;
@@ -2494,7 +2504,7 @@ async function guardarPropietario() {
         action:    'actualizar_candidato',
         ficha_id:  fichaData.ficha.ficha_id,
         row_num:   Number(rowNum),
-        nombre, nif, parentesco, fecha_nacimiento, telefono: tel
+        nombre, nif, parentesco, fecha_nacimiento, telefono: tel, estado
       });
     } else {
       await ntApi({
@@ -2502,7 +2512,7 @@ async function guardarPropietario() {
         ficha_id: fichaData.ficha.ficha_id,
         nombre, nif, parentesco, fecha_nacimiento, telefono: tel,
         fuente:   'Inglobably',
-        estado:   'Pendiente',
+        estado,
         asesor:   asesorActual
       });
       // Si tiene teléfono, también lo agrega como candidato a llamar
