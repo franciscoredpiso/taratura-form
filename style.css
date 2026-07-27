@@ -1749,6 +1749,7 @@
             transition: box-shadow .15s, transform .15s;
         }
         .tz-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.08); transform: translateY(-1px); }
+        .tz-card.tz-clickable { cursor: pointer; }
         .tz-card.tz-completada { opacity: .45; }
         .tz-card.tz-vencida { border-left: 3px solid #b91c1c; }
         .tz-card.tz-hoy     { border-left: 3px solid #1d4ed8; }

@@ -1034,6 +1034,13 @@
   <div class="nt-modal">
     <div class="nt-modal-title">Próxima acción</div>
     <div class="nt-form-group">
+      <label>¿Qué hacemos con esta tarea?</label>
+      <div class="tz-prio-picker">
+        <button type="button" class="tz-prio-opt tz-sel-media" id="tareaModoReprogramar" onclick="tareaSetModo('reprogramar')">↻ Reprogramar</button>
+        <button type="button" class="tz-prio-opt tz-unsel" id="tareaModoCerrar" onclick="tareaSetModo('cerrar')">✓ Cerrar sin seguimiento</button>
+      </div>
+    </div>
+    <div class="nt-form-group" id="tareaAccionWrap">
       <label>Qué hay que hacer</label>
       <div style="display:flex;gap:6px;align-items:center">
         <select id="tareaTipoAccion" onchange="onTareaTipoChange()" style="flex:0 0 auto;width:auto;font-size:13px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#334155">
@@ -1044,7 +1051,7 @@
         <input type="text" id="tareaAccion" placeholder="Ej: Llamar a Ana García, buscar en Inglobably…" style="flex:1">
       </div>
     </div>
-    <div class="nt-form-group">
+    <div class="nt-form-group" id="tareaUrgenciaWrap">
       <label>Urgencia</label>
       <div class="tz-prio-picker">
         <button type="button" class="tz-prio-opt" id="ntPoAlta"  onclick="ntSetPrio('Alta')">🔴 Alta</button>
@@ -1053,10 +1060,10 @@
       </div>
     </div>
     <div class="nt-form-group">
-      <label>Descripción (opcional)</label>
+      <label id="tareaDescLabel">Descripción (opcional)</label>
       <textarea id="tareaDesc" placeholder="Contexto, notas previas, detalles…"></textarea>
     </div>
-    <div class="nt-form-group">
+    <div class="nt-form-group" id="tareaFechaWrap">
       <label>Fecha</label>
       <input type="date" id="tareaFecha">
     </div>
