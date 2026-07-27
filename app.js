@@ -2210,16 +2210,18 @@ function tareaSetModo(m) {
 function abrirModalTarea() {
   const ficha = fichaData?.ficha;
   if (!ficha) return;
+  const tieneTarea = !!(ficha.proxima_accion && ficha.proxima_accion.trim());
   const { tipo, texto, prioridad } = parseProximaAccion(ficha.proxima_accion);
   document.getElementById('tareaTipoAccion').value   = tipo || 'Llamada';
   document.getElementById('tareaAccion').placeholder = TIPO_PLACEHOLDER[tipo || 'Llamada'] || 'Detalle…';
-  document.getElementById('tareaAccion').value       = texto;
-  ntPrioTarea = prioridad;
-  tzActualizarPrioPicker('ntPo', prioridad);
-  document.getElementById('tareaFecha').value  = ficha.fecha_proxima_accion
+  document.getElementById('tareaAccion').value       = tieneTarea ? texto : '';
+  ntPrioTarea = tieneTarea ? prioridad : 'Media';
+  tzActualizarPrioPicker('ntPo', ntPrioTarea);
+  document.getElementById('tareaFecha').value  = tieneTarea && ficha.fecha_proxima_accion
     ? new Date(ficha.fecha_proxima_accion).toISOString().split('T')[0]
     : new Date().toISOString().split('T')[0];
   document.getElementById('tareaDesc').value = '';
+  document.getElementById('tareaModoWrap').style.display = tieneTarea ? '' : 'none';
   tareaSetModo('reprogramar');
   ntOpenModal('tarea');
 }
