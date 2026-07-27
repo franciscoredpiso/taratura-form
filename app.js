@@ -2195,6 +2195,18 @@ function onTareaTipoChange() {
 
 function ntSetPrio(p) { ntPrioTarea = p; tzActualizarPrioPicker('ntPo', p); }
 
+let tareaModo = 'reprogramar';
+function tareaSetModo(m) {
+  tareaModo = m;
+  document.getElementById('tareaModoReprogramar').className = 'tz-prio-opt' + (m === 'reprogramar' ? ' tz-sel-media' : ' tz-unsel');
+  document.getElementById('tareaModoCerrar').className       = 'tz-prio-opt' + (m === 'cerrar'       ? ' tz-sel-baja'  : ' tz-unsel');
+  document.getElementById('tareaAccionWrap').style.display   = m === 'cerrar' ? 'none' : '';
+  document.getElementById('tareaUrgenciaWrap').style.display = m === 'cerrar' ? 'none' : '';
+  document.getElementById('tareaFechaWrap').style.display    = m === 'cerrar' ? 'none' : '';
+  document.getElementById('tareaDescLabel').textContent      = m === 'cerrar' ? '¿Qué pasó? (opcional)' : 'Descripción (opcional)';
+  document.getElementById('btnGuardarTarea').textContent     = m === 'cerrar' ? 'Cerrar tarea' : 'Guardar tarea';
+}
+
 function abrirModalTarea() {
   const ficha = fichaData?.ficha;
   if (!ficha) return;
@@ -2208,30 +2220,46 @@ function abrirModalTarea() {
     ? new Date(ficha.fecha_proxima_accion).toISOString().split('T')[0]
     : new Date().toISOString().split('T')[0];
   document.getElementById('tareaDesc').value = '';
+  tareaSetModo('reprogramar');
   ntOpenModal('tarea');
 }
 
 async function guardarTarea() {
-  const tipo   = document.getElementById('tareaTipoAccion').value;
-  const accion = document.getElementById('tareaAccion').value.trim();
-  const fecha  = document.getElementById('tareaFecha').value;
-  const desc   = document.getElementById('tareaDesc').value.trim();
-  if (!accion) { showToast('Escribí qué hay que hacer'); return; }
-  const proximaAccion = buildProximaAccionTexto(tipo, accion, ntPrioTarea);
-  const btn = document.getElementById('btnGuardarTarea');
-  btn.disabled = true; btn.textContent = 'Guardando…';
+  const desc = document.getElementById('tareaDesc').value.trim();
+  const btn  = document.getElementById('btnGuardarTarea');
+  btn.disabled = true; btn.textContent = tareaModo === 'cerrar' ? 'Cerrando…' : 'Guardando…';
   try {
-    await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: fichaData.ficha.ficha_id,
-                  proxima_accion: proximaAccion, fecha_proxima_accion: fecha });
-    if (desc) {
-      await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
-                    autor: asesorActual, nota: `Tarea: ${accion}${desc ? ' — ' + desc : ''}` });
+    if (tareaModo === 'cerrar') {
+      await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: fichaData.ficha.ficha_id,
+                    proxima_accion: '', fecha_proxima_accion: '' });
+      if (desc) {
+        await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
+                      autor: asesorActual, nota: desc });
+      }
+      ntCloseModal('tarea');
+      showToast('✓ Tarea cerrada');
+    } else {
+      const tipo   = document.getElementById('tareaTipoAccion').value;
+      const accion = document.getElementById('tareaAccion').value.trim();
+      const fecha  = document.getElementById('tareaFecha').value;
+      if (!accion) {
+        showToast('Escribí qué hay que hacer');
+        btn.disabled = false; btn.textContent = 'Guardar tarea';
+        return;
+      }
+      const proximaAccion = buildProximaAccionTexto(tipo, accion, ntPrioTarea);
+      await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: fichaData.ficha.ficha_id,
+                    proxima_accion: proximaAccion, fecha_proxima_accion: fecha });
+      if (desc) {
+        await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
+                      autor: asesorActual, nota: `Tarea: ${accion}${desc ? ' — ' + desc : ''}` });
+      }
+      ntCloseModal('tarea');
+      showToast('✓ Próxima acción guardada');
     }
-    ntCloseModal('tarea');
-    showToast('✓ Próxima acción guardada');
     await recargarFicha();
   } catch(err) { showToast('Error: ' + err.message); }
-  finally { btn.disabled = false; btn.textContent = 'Guardar tarea'; }
+  finally { btn.disabled = false; btn.textContent = tareaModo === 'cerrar' ? 'Cerrar tarea' : 'Guardar tarea'; }
 }
 
 function renderHistorial(seguimiento) {
@@ -5067,21 +5095,23 @@ function tzRenderCard(t, esCompletada = false) {
         const cuandoStr = t.fechaCompletada ? ' · ' + tzFormatFecha(t.fechaCompletada) : '';
         btnsHtml = `<div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:11px;color:#888">✓ Completada${cuandoStr}</span>
-          <button class="tz-btn-reabrir" onclick="tzReabrirTarea('${t.id}')">↩ Reabrir</button>
+          <button class="tz-btn-reabrir" onclick="event.stopPropagation(); tzReabrirTarea('${t.id}')">↩ Reabrir</button>
         </div>`;
     } else {
         btnsHtml = `<div style="display:flex;align-items:center;gap:2px">
-          <button class="tz-btn-completar" onclick="tzCompletarTarea('${t.id}')">✓ Listo</button>
+          <button class="tz-btn-completar" onclick="event.stopPropagation(); tzCompletarTarea('${t.id}')">✓ Listo</button>
           ${t.tipo === 'General' ? `
-            <button class="tz-btn-eliminar" onclick="tzEditarTarea('${t.id}')" title="Editar">✏️</button>
-            <button class="tz-btn-eliminar" onclick="tzEliminarTarea('${t.id}')" title="Eliminar">🗑</button>` : ''}
+            <button class="tz-btn-eliminar" onclick="event.stopPropagation(); tzEditarTarea('${t.id}')" title="Editar">✏️</button>
+            <button class="tz-btn-eliminar" onclick="event.stopPropagation(); tzEliminarTarea('${t.id}')" title="Eliminar">🗑</button>` : ''}
         </div>`;
     }
 
     const telHref = t.telefono ? String(t.telefono).replace(/\s+/g, '') : '';
+    const clickAttr = esCompletada ? '' : ` onclick="tzAbrirTarea('${t.id}','${t.tipo}')"`;
+    const clickCls  = esCompletada ? '' : ' tz-clickable';
 
     return `
-    <div class="${cardCls}" id="tz-card-${safeId}">
+    <div class="${cardCls}${clickCls}" id="tz-card-${safeId}"${clickAttr}>
       <div class="tz-card-top">
         <div class="tz-card-left">
           <div class="tz-card-desc">${escHtml(t.desc)}</div>
@@ -5097,7 +5127,7 @@ function tzRenderCard(t, esCompletada = false) {
       <div class="tz-card-bottom">
         <div style="display:flex;align-items:center;gap:8px">
           <span class="tz-tipo-badge ${tipoClass}">${t.tipo}</span>
-          ${t.ficha_id ? `<button class="tz-btn-verficha" onclick="tzVerFicha('${t.ficha_id}')">Ver ficha →</button>` : ''}
+          ${t.ficha_id ? `<button class="tz-btn-verficha" onclick="event.stopPropagation(); tzVerFicha('${t.ficha_id}')">Ver ficha →</button>` : ''}
         </div>
         ${btnsHtml}
       </div>
@@ -5114,6 +5144,27 @@ async function tzVerFicha(fichaId) {
     const idx = noticias.findIndex(n => n.ficha_id === fichaId);
     if (idx === -1) { showToast('No se encontró la ficha'); return; }
     abrirFichaNoticia(idx);
+}
+
+// ── Abrir una tarea directamente desde su tarjeta ─
+// General → modal de edición de tareas. Noticia (ficha o candidato) →
+// abre la ficha completa y, encima, el modal de gestión correspondiente.
+async function tzAbrirTarea(id, tipo) {
+    if (tipo === 'General') { tzEditarTarea(id); return; }
+    const t = tzTareasNoticias.find(x => x.id === id);
+    if (!t || !t.ficha_id) return;
+    showScreen('noticias');
+    try {
+        await cargarNoticias();
+    } catch (e) { return; }
+    const idx = noticias.findIndex(n => n.ficha_id === t.ficha_id);
+    if (idx === -1) { showToast('No se encontró la ficha'); return; }
+    await abrirFichaNoticia(idx);
+    if (id.startsWith('CAND-')) {
+        abrirLlamada(t.row_num);
+    } else {
+        abrirModalTarea();
+    }
 }
 
 // ── Acciones ──────────────────────────────────
