@@ -249,9 +249,10 @@
 
 /* ── Modal noticias ── */
 .nt-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
-                    z-index: 100; align-items: flex-end; justify-content: center; }
+                    z-index: 200; align-items: flex-end; justify-content: center; }
 .nt-modal-overlay.open { display: flex; }
 .nt-modal { background: white; border-radius: 16px 16px 0 0; padding: 20px;
+            padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
             width: 100%; max-width: 480px; animation: ntSlideUp .2s ease;
             max-height: 90vh; overflow-y: auto; }
 @keyframes ntSlideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
