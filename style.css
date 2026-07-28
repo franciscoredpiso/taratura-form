@@ -1833,11 +1833,12 @@
         /* Modal */
         .tz-modal-overlay {
             display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
-            z-index: 100; align-items: flex-end; justify-content: center;
+            z-index: 200; align-items: flex-end; justify-content: center;
         }
         .tz-modal-overlay.open { display: flex; }
         .tz-modal {
             background: white; border-radius: 16px 16px 0 0; padding: 20px;
+            padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
             width: 100%; max-width: 480px; animation: tzSlideUp .2s ease;
             max-height: 90vh; overflow-y: auto;
         }
