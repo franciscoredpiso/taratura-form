@@ -1933,7 +1933,7 @@ function renderPanelRapido(ficha, candidatos, seguimiento) {
     const { sinPrioridad } = parseProximaAccion(ficha.proxima_accion);
     parts.push(`
       <div class="pr-item full">
-        <div class="pr-item-label">Próxima acción</div>
+        <div class="pr-item-label">Tarea</div>
         <div class="pr-item-val">${sinPrioridad}</div>
         <div class="pr-item-sub" style="color:#1d4ed8;font-weight:600">${formatFecha(ficha.fecha_proxima_accion)}${cuando ? ' · ' + cuando : ''}</div>
       </div>`);
@@ -2184,7 +2184,7 @@ function renderProximaAccion(ficha) {
         </div>
       </div>`;
   } else {
-    pb.innerHTML = `<button class="prox-add-btn" onclick="abrirModalTarea()">+ Agregar próxima acción</button>`;
+    pb.innerHTML = `<button class="prox-add-btn" onclick="abrirModalTarea()">+ Agregar tarea</button>`;
   }
 }
 
@@ -2196,15 +2196,23 @@ function onTareaTipoChange() {
 function ntSetPrio(p) { ntPrioTarea = p; tzActualizarPrioPicker('ntPo', p); }
 
 let tareaModo = 'reprogramar';
+function tareaBtnLabel(m) {
+  return m === 'cerrar' ? 'Cerrar tarea' : m === 'cerrar_nueva' ? 'Cerrar y crear nueva' : 'Guardar tarea';
+}
 function tareaSetModo(m) {
   tareaModo = m;
-  document.getElementById('tareaModoReprogramar').className = 'tz-prio-opt' + (m === 'reprogramar' ? ' tz-sel-media' : ' tz-unsel');
-  document.getElementById('tareaModoCerrar').className       = 'tz-prio-opt' + (m === 'cerrar'       ? ' tz-sel-baja'  : ' tz-unsel');
-  document.getElementById('tareaAccionWrap').style.display   = m === 'cerrar' ? 'none' : '';
-  document.getElementById('tareaUrgenciaWrap').style.display = m === 'cerrar' ? 'none' : '';
-  document.getElementById('tareaFechaWrap').style.display    = m === 'cerrar' ? 'none' : '';
-  document.getElementById('tareaDescLabel').textContent      = m === 'cerrar' ? '¿Qué pasó? (opcional)' : 'Descripción (opcional)';
-  document.getElementById('btnGuardarTarea').textContent     = m === 'cerrar' ? 'Cerrar tarea' : 'Guardar tarea';
+  document.getElementById('tareaModoReprogramar').className  = 'tz-prio-opt' + (m === 'reprogramar'  ? ' tz-sel-media' : ' tz-unsel');
+  document.getElementById('tareaModoCerrar').className        = 'tz-prio-opt' + (m === 'cerrar'        ? ' tz-sel-baja'  : ' tz-unsel');
+  document.getElementById('tareaModoCerrarNueva').className   = 'tz-prio-opt' + (m === 'cerrar_nueva'   ? ' tz-sel-azul'  : ' tz-unsel');
+  const mostrarCampos = m !== 'cerrar';
+  document.getElementById('tareaAccionWrap').style.display   = mostrarCampos ? '' : 'none';
+  document.getElementById('tareaUrgenciaWrap').style.display = mostrarCampos ? '' : 'none';
+  document.getElementById('tareaFechaWrap').style.display    = mostrarCampos ? '' : 'none';
+  document.getElementById('tareaDescLabel').textContent      =
+    m === 'cerrar'       ? '¿Qué pasó? (opcional)' :
+    m === 'cerrar_nueva' ? '¿Qué pasó con la tarea anterior? (opcional)' :
+                            'Descripción (opcional)';
+  document.getElementById('btnGuardarTarea').textContent     = tareaBtnLabel(m);
 }
 
 function abrirModalTarea() {
@@ -2229,7 +2237,7 @@ function abrirModalTarea() {
 async function guardarTarea() {
   const desc = document.getElementById('tareaDesc').value.trim();
   const btn  = document.getElementById('btnGuardarTarea');
-  btn.disabled = true; btn.textContent = tareaModo === 'cerrar' ? 'Cerrando…' : 'Guardando…';
+  btn.disabled = true; btn.textContent = tareaModo === 'reprogramar' ? 'Guardando…' : 'Cerrando…';
   try {
     if (tareaModo === 'cerrar') {
       await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: fichaData.ficha.ficha_id,
@@ -2245,23 +2253,27 @@ async function guardarTarea() {
       const accion = document.getElementById('tareaAccion').value.trim();
       const fecha  = document.getElementById('tareaFecha').value;
       if (!accion) {
-        showToast('Escribí qué hay que hacer');
-        btn.disabled = false; btn.textContent = 'Guardar tarea';
+        showToast(tareaModo === 'cerrar_nueva' ? 'Escribí qué hay que hacer en la nueva tarea' : 'Escribí qué hay que hacer en la tarea');
+        btn.disabled = false; btn.textContent = tareaBtnLabel(tareaModo);
         return;
+      }
+      if (tareaModo === 'cerrar_nueva' && desc) {
+        await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
+                      autor: asesorActual, nota: `Tarea cerrada: ${desc}` });
       }
       const proximaAccion = buildProximaAccionTexto(tipo, accion, ntPrioTarea);
       await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: fichaData.ficha.ficha_id,
                     proxima_accion: proximaAccion, fecha_proxima_accion: fecha });
-      if (desc) {
+      if (tareaModo === 'reprogramar' && desc) {
         await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
                       autor: asesorActual, nota: `Tarea: ${accion}${desc ? ' — ' + desc : ''}` });
       }
       ntCloseModal('tarea');
-      showToast('✓ Próxima acción guardada');
+      showToast(tareaModo === 'cerrar_nueva' ? '✓ Tarea cerrada y nueva creada' : '✓ Tarea guardada');
     }
     await recargarFicha();
   } catch(err) { showToast('Error: ' + err.message); }
-  finally { btn.disabled = false; btn.textContent = tareaModo === 'cerrar' ? 'Cerrar tarea' : 'Guardar tarea'; }
+  finally { btn.disabled = false; btn.textContent = tareaBtnLabel(tareaModo); }
 }
 
 function renderHistorial(seguimiento) {
@@ -2389,6 +2401,7 @@ function abrirLlamada(rowNum) {
   document.getElementById('llamadaProxAccion').placeholder = TIPO_PLACEHOLDER['Llamada'];
   document.getElementById('llamadaProxAccion').value       = candidatoActivo.proxima_accion || '';
   document.getElementById('llamadaFechaProx').value = fechaSheetAIso(candidatoActivo.fecha_proxima_accion) || new Date().toISOString().split('T')[0];
+  document.getElementById('llamadaProxDesc').value  = '';
   document.getElementById('llamadaProgramar').checked = !!(candidatoActivo.proxima_accion && candidatoActivo.proxima_accion.trim());
   onSuenaChange();
   ntOpenModal('llamada');
@@ -2399,7 +2412,8 @@ async function guardarLlamada() {
   const btn   = document.getElementById('btnGuardarLlamada');
   const suena = document.getElementById('llamadaSuena').value;
 
-  const programar = document.getElementById('llamadaProgramar').checked;
+  const programar   = document.getElementById('llamadaProgramar').checked;
+  const tareaPrevia = (candidatoActivo.proxima_accion || '').trim();
 
   let estadoNuevo, proxAccion, fechaProx;
   if (suena === 'No existe') {
@@ -2413,7 +2427,7 @@ async function guardarLlamada() {
   }
 
   if (programar && !proxAccion) {
-    showToast('Escribí qué hay que hacer en la próxima acción');
+    showToast('Escribí qué hay que hacer en la tarea');
     return;
   }
 
@@ -2437,9 +2451,21 @@ async function guardarLlamada() {
       await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
                     autor: asesorActual, nota: `Llamada a ${candidatoActivo.nombre}: ${resDesc}` });
     }
+    // Si había una tarea pendiente distinta de la que se acaba de guardar, dejamos
+    // constancia del cierre en el historial para no perder el hilo.
+    if (tareaPrevia && tareaPrevia !== proxAccion) {
+      await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
+                    autor: asesorActual, nota: `Tarea cerrada (${candidatoActivo.nombre}): ${tareaPrevia}` });
+    }
+    const tareaDesc = document.getElementById('llamadaProxDesc').value.trim();
+    if (programar && tareaDesc) {
+      await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
+                    autor: asesorActual, nota: `Tarea (${candidatoActivo.nombre}): ${document.getElementById('llamadaProxAccion').value.trim()} — ${tareaDesc}` });
+    }
     ntCloseModal('llamada');
     document.getElementById('llamadaNotas').value      = '';
     document.getElementById('llamadaProxAccion').value = '';
+    document.getElementById('llamadaProxDesc').value   = '';
     showToast('✓ Llamada registrada');
     await recargarFicha();
   } catch(err) { showToast('Error: ' + err.message); }
@@ -4842,6 +4868,7 @@ let tzTareasNoticias            = [];
 let tzTareasGenerales           = [];
 let tzTareasNoticiasCompletadas = [];
 let tzSortBy                    = 'fecha';
+let tzAgrupado                  = 'portal';
 let tzVistaActual               = 'pendientes';
 let tzFiltroPend                = 'todas';
 let tzFiltroComp                = 'semana';
@@ -5052,7 +5079,9 @@ function tzRenderPendientes() {
         box.innerHTML = `<div class="tz-empty-state"><div style="font-size:36px;margin-bottom:10px">✅</div><div>${msgs[tzFiltroPend]||'Sin tareas.'}</div></div>`;
         return;
     }
-    if (tzFiltroPend === 'todas') {
+    if (tzAgrupado === 'portal') {
+        box.innerHTML = tzRenderPorPortal(lista);
+    } else if (tzFiltroPend === 'todas') {
         const grupos = { 'Vencida':[], 'Hoy':[], 'Esta semana':[], 'Más adelante':[], 'Sin fecha':[] };
         lista.forEach(t => { const g = t.fecha ? (tzFechaLabel(t.fecha) || 'Más adelante') : 'Sin fecha'; grupos[g].push(t); });
         const sec = { 'Vencida':{label:'Vencidas',cls:'tz-vencida'}, 'Hoy':{label:'Hoy',cls:'tz-hoy'},
@@ -5067,6 +5096,63 @@ function tzRenderPendientes() {
     } else {
         box.innerHTML = lista.map(t => tzRenderCard(t)).join('');
     }
+}
+
+// ── Agrupado por Portal → Puerta ──────────────
+// Usa la dirección ya formateada de cada tarea ("Calle Numero · Escalera · Piso · Pta X",
+// ver tzBuildAddr y tzSeleccionarPuerta) para no depender de un campo nuevo.
+function tzAgruparPorPortal(lista) {
+    const portalMap      = {};
+    const ordenPortales  = [];
+    const sinUbicacion   = [];
+    lista.forEach(t => {
+        const dirCompleta = (t.addr || t.puerta_addr || '').trim();
+        if (!dirCompleta) { sinUbicacion.push(t); return; }
+        const partes      = dirCompleta.split(' · ');
+        const portalLabel = partes[0];
+        const puertaLabel = partes.length > 1 ? partes.slice(1).join(' · ') : 'Portal completo';
+        const portalKey   = portalLabel.toLowerCase();
+        if (!portalMap[portalKey]) {
+            portalMap[portalKey] = { label: portalLabel, puertas: {}, ordenPuertas: [] };
+            ordenPortales.push(portalKey);
+        }
+        const puertaKey = puertaLabel.toLowerCase();
+        if (!portalMap[portalKey].puertas[puertaKey]) {
+            portalMap[portalKey].puertas[puertaKey] = { label: puertaLabel, items: [] };
+            portalMap[portalKey].ordenPuertas.push(puertaKey);
+        }
+        portalMap[portalKey].puertas[puertaKey].items.push(t);
+    });
+    ordenPortales.sort((a, b) => portalMap[a].label.localeCompare(portalMap[b].label));
+    return { portalMap, ordenPortales, sinUbicacion };
+}
+
+function tzRenderPorPortal(lista) {
+    const { portalMap, ordenPortales, sinUbicacion } = tzAgruparPorPortal(lista);
+    let html = '';
+    ordenPortales.forEach(portalKey => {
+        const portal = portalMap[portalKey];
+        const total  = portal.ordenPuertas.reduce((n, pk) => n + portal.puertas[pk].items.length, 0);
+        html += `<div class="tz-portal-hdr">📍 ${escHtml(portal.label)} <span style="font-weight:400;opacity:.6">(${total})</span></div>`;
+        portal.ordenPuertas.forEach(puertaKey => {
+            const puerta = portal.puertas[puertaKey];
+            html += `<div class="tz-puerta-hdr">${escHtml(puerta.label)}</div>`;
+            puerta.items.forEach(t => { html += tzRenderCard(t); });
+        });
+    });
+    if (sinUbicacion.length) {
+        html += `<div class="tz-section-hdr">Sin ubicación <span style="font-weight:400;opacity:.6">(${sinUbicacion.length})</span></div>`;
+        sinUbicacion.forEach(t => { html += tzRenderCard(t); });
+    }
+    return html;
+}
+
+function tzToggleAgrupado() {
+    tzAgrupado = tzAgrupado === 'portal' ? 'fecha' : 'portal';
+    const btn = document.getElementById('tzGroupBtn');
+    btn.textContent = tzAgrupado === 'portal' ? '📍 Portal' : '📅 Fecha';
+    btn.classList.toggle('active', tzAgrupado === 'portal');
+    tzRender();
 }
 
 function tzRenderCompletadas() {
@@ -5103,6 +5189,7 @@ function tzRenderCard(t, esCompletada = false) {
         btnsHtml = `<div style="display:flex;align-items:center;gap:2px">
           <button class="tz-btn-completar" onclick="event.stopPropagation(); tzCompletarTarea('${t.id}')">✓ Listo</button>
           ${t.tipo === 'General' ? `
+            <button class="tz-btn-eliminar" onclick="event.stopPropagation(); tzCerrarYNuevaGeneral('${t.id}')" title="Cerrar y crear nueva">🔁</button>
             <button class="tz-btn-eliminar" onclick="event.stopPropagation(); tzEditarTarea('${t.id}')" title="Editar">✏️</button>
             <button class="tz-btn-eliminar" onclick="event.stopPropagation(); tzEliminarTarea('${t.id}')" title="Eliminar">🗑</button>` : ''}
         </div>`;
@@ -5209,6 +5296,37 @@ async function tzCompletarTarea(id) {
         showToast('Tarea completada ✓');
     }
     tzRender();
+}
+
+// Cierra una tarea general y abre "Nueva tarea" precargada con los mismos datos,
+// para no perder el hilo cuando hace falta encadenar una tarea nueva.
+function tzCerrarYNuevaGeneral(id) {
+    const t = tzTareasGenerales.find(t => t.id === id);
+    if (!t) return;
+    t.completada = true; t.fechaCompletada = tzToday();
+    tzGuardarTareasLocales();
+    tzRender();
+    showToast('Tarea cerrada ✓ — completá los datos de la nueva');
+
+    document.getElementById('tzNtDesc').value  = t.desc;
+    document.getElementById('tzNtNotas').value = t.notas || '';
+    document.getElementById('tzNtFecha').value = '';
+    document.getElementById('tzNtHora').value  = '';
+    tzPrioNueva = t.prioridad || 'Media';
+    tzActualizarPrioPicker('tzPo', tzPrioNueva);
+    if (t.puerta_addr) {
+        tzPuertaSelNt = { clave: t.puerta_clave, addr: t.puerta_addr, estado: t.puerta_est };
+        document.getElementById('tzNtPuertaBtn').style.display        = 'none';
+        document.getElementById('tzNtPortalSearchWrap').style.display = 'none';
+        document.getElementById('tzNtPuertaStepWrap').style.display   = 'none';
+        document.getElementById('tzNtPuertaSelected').style.display   = '';
+        document.getElementById('tzNtPuertaSelText').textContent      = t.puerta_addr;
+    } else {
+        tzLimpiarPuerta('nt');
+        tzPuertaSelNt = null;
+    }
+    tzCheckNuevaTarea();
+    tzOpenModal('nuevaTarea');
 }
 
 async function tzReabrirTarea(id) {

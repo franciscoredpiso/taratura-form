@@ -745,7 +745,7 @@
     </div>
 
     <div class="nt-section">
-      <div class="sec-hdr" onclick="ntToggleSec(this)">Próxima acción <span>▾</span></div>
+      <div class="sec-hdr" onclick="ntToggleSec(this)">Tarea <span>▾</span></div>
       <div class="sec-body" id="proximaAccionBox"></div>
     </div>
 
@@ -827,7 +827,7 @@
     <div class="nt-form-group" id="llamadaProgramarWrap">
       <label class="nt-checkbox-row">
         <input type="checkbox" id="llamadaProgramar" onchange="onProgramarAccionChange()">
-        Programar una próxima acción
+        Programar tarea
       </label>
     </div>
     <div id="llamadaProxGroup" style="display:none">
@@ -843,8 +843,12 @@
         </div>
       </div>
       <div class="nt-form-group">
-        <label>Fecha próxima acción</label>
+        <label>Fecha de la tarea</label>
         <input type="date" id="llamadaFechaProx">
+      </div>
+      <div class="nt-form-group">
+        <label>Descripción de la tarea (opcional)</label>
+        <textarea id="llamadaProxDesc" placeholder="Detalles, contexto…"></textarea>
       </div>
     </div>
     <div class="nt-modal-actions">
@@ -1033,12 +1037,13 @@
 
 <div class="nt-modal-overlay" id="nt-modal-tarea">
   <div class="nt-modal">
-    <div class="nt-modal-title">Próxima acción</div>
+    <div class="nt-modal-title">Tarea</div>
     <div class="nt-form-group" id="tareaModoWrap">
       <label>¿Qué hacemos con esta tarea?</label>
       <div class="tz-prio-picker">
         <button type="button" class="tz-prio-opt tz-sel-media" id="tareaModoReprogramar" onclick="tareaSetModo('reprogramar')">↻ Reprogramar</button>
-        <button type="button" class="tz-prio-opt tz-unsel" id="tareaModoCerrar" onclick="tareaSetModo('cerrar')">✓ Cerrar sin seguimiento</button>
+        <button type="button" class="tz-prio-opt tz-unsel" id="tareaModoCerrar" onclick="tareaSetModo('cerrar')">✓ Cerrar</button>
+        <button type="button" class="tz-prio-opt tz-unsel" id="tareaModoCerrarNueva" onclick="tareaSetModo('cerrar_nueva')">🔁 Cerrar y crear nueva</button>
       </div>
     </div>
     <div class="nt-form-group" id="tareaAccionWrap">
@@ -1347,7 +1352,10 @@
       <button class="tz-tab active" id="tzTabPend" onclick="tzSetVista('pendientes')">Pendientes</button>
       <button class="tz-tab"        id="tzTabComp" onclick="tzSetVista('completadas')">Completadas</button>
     </div>
-    <button class="tz-sort-btn" id="tzSortBtn" onclick="tzToggleSort()">📅 Fecha</button>
+    <div style="display:flex;gap:6px">
+      <button class="tz-sort-btn active" id="tzGroupBtn" onclick="tzToggleAgrupado()">📍 Portal</button>
+      <button class="tz-sort-btn" id="tzSortBtn" onclick="tzToggleSort()">📅 Fecha</button>
+    </div>
   </div>
   <div class="tz-sub-chips-bar" id="tzSubBarPend">
     <button class="tz-chip active" id="tzFpTodas"    onclick="tzSetFiltroPend('todas')">Todas</button>
