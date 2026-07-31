@@ -729,7 +729,7 @@
       <div class="sec-hdr" onclick="ntToggleSec(this)">Candidatos a llamar <span>▾</span></div>
       <div class="sec-body">
         <div class="cand-actions">
-          <button class="btn-sm" onclick="ntOpenModal('candidato')">+ Manual</button>
+          <button class="btn-sm" onclick="abrirAgregarCandidato()">+ Manual</button>
           <button class="btn-sm" onclick="ntOpenModal('importarABC')" style="background:#dbeafe;border-color:#93c5fd;color:#1d4ed8">↓ Importar ABC</button>
         </div>
         <div id="candidatosResumen"></div>
@@ -860,7 +860,8 @@
 
 <div class="nt-modal-overlay" id="nt-modal-candidato">
   <div class="nt-modal">
-    <div class="nt-modal-title">Agregar candidato</div>
+    <div class="nt-modal-title" id="candModalTitle">Agregar candidato</div>
+    <input type="hidden" id="candRowNum" value="">
     <div class="nt-form-group">
       <label>Nombre completo</label>
       <input type="text" id="candNombre" placeholder="Apellido, Nombre">

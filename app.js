@@ -2156,7 +2156,11 @@ function renderCandidatosPanel() {
       </div>
       <div class="cand-bottom">
         <span class="cand-estado">${estadoIcon[c.estado] || '🕐'} ${c.estado || 'Pendiente'}</span>
-        <button class="btn-sm" onclick="abrirLlamadaDesdePanel(${c.row_num})">Registrar llamada</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn-sm" onclick="abrirLlamadaDesdePanel(${c.row_num})">Registrar llamada</button>
+          <button class="btn-sm" onclick="abrirEditarCandidato(${c.row_num})">Editar</button>
+          <button class="btn-sm" style="background:#fee2e2;border-color:#fca5a5;color:#b91c1c" onclick="eliminarCandidatoLlamar(${c.row_num})">Borrar</button>
+        </div>
       </div>
       ${c.proxima_accion ? `<div class="cand-prox" style="margin-top:4px">→ ${c.proxima_accion}${c.fecha_proxima_accion ? ' · ' + formatFecha(c.fecha_proxima_accion) : ''}</div>` : ''}
     </div>`).join('');
@@ -2477,27 +2481,76 @@ async function guardarLlamada() {
   finally { btn.disabled = false; btn.textContent = 'Guardar'; candidatoActivo = null; }
 }
 
+function abrirAgregarCandidato() {
+  document.getElementById('candRowNum').value        = '';
+  document.getElementById('candModalTitle').textContent = 'Agregar candidato';
+  document.getElementById('btnGuardarCandidato').textContent = 'Agregar';
+  ['candNombre','candTelefono'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('candVinculo').value = 'Propietario probable';
+  document.getElementById('candFuente').value  = 'Manual';
+  ntOpenModal('candidato');
+}
+
+function abrirEditarCandidato(rowNum) {
+  if (!fichaData || !fichaData.candidatos) { showToast('Error: ficha no cargada'); return; }
+  const c = fichaData.candidatos.find(x => String(x.row_num) === String(rowNum));
+  if (!c) { showToast('No se encontró el candidato'); return; }
+  document.getElementById('candRowNum').value        = rowNum;
+  document.getElementById('candModalTitle').textContent = 'Editar candidato';
+  document.getElementById('btnGuardarCandidato').textContent = 'Guardar cambios';
+  document.getElementById('candNombre').value    = c.nombre    || '';
+  document.getElementById('candTelefono').value  = c.telefono  || '';
+  document.getElementById('candVinculo').value   = c.parentesco || 'Propietario probable';
+  document.getElementById('candFuente').value    = c.fuente    || 'Manual';
+  ntOpenModal('candidato');
+}
+
 async function guardarCandidato() {
   const nombre = document.getElementById('candNombre').value.trim();
   const tel    = document.getElementById('candTelefono').value.trim();
   if (!nombre || !tel) { showToast('Nombre y teléfono son obligatorios'); return; }
+  const rowNum    = document.getElementById('candRowNum').value;
+  const esEdicion = !!rowNum;
   const btn = document.getElementById('btnGuardarCandidato');
+  const textoOriginal = btn.textContent;
   btn.disabled = true; btn.textContent = 'Guardando…';
   try {
-    await ntApi({
-      action:      'agregar_candidato',
-      ficha_id:    fichaData.ficha.ficha_id,
-      nombre, telefono: tel,
-      parentesco:  document.getElementById('candVinculo').value,
-      fuente:      document.getElementById('candFuente').value,
-      asesor:      asesorActual
-    });
+    if (esEdicion) {
+      await ntApi({
+        action:      'actualizar_candidato',
+        ficha_id:    fichaData.ficha.ficha_id,
+        row_num:     Number(rowNum),
+        nombre, telefono: tel,
+        parentesco:  document.getElementById('candVinculo').value,
+        fuente:      document.getElementById('candFuente').value
+      });
+    } else {
+      await ntApi({
+        action:      'agregar_candidato',
+        ficha_id:    fichaData.ficha.ficha_id,
+        nombre, telefono: tel,
+        parentesco:  document.getElementById('candVinculo').value,
+        fuente:      document.getElementById('candFuente').value,
+        asesor:      asesorActual
+      });
+    }
     ntCloseModal('candidato');
     ['candNombre','candTelefono'].forEach(id => document.getElementById(id).value = '');
-    showToast('✓ Candidato agregado');
+    document.getElementById('candRowNum').value = '';
+    showToast(esEdicion ? '✓ Candidato actualizado' : '✓ Candidato agregado');
     await recargarFicha();
   } catch(err) { showToast('Error: ' + err.message); }
-  finally { btn.disabled = false; btn.textContent = 'Agregar'; }
+  finally { btn.disabled = false; btn.textContent = textoOriginal; }
+}
+
+async function eliminarCandidatoLlamar(rowNum) {
+  if (!fichaData) return;
+  if (!confirm('¿Eliminar este candidato?')) return;
+  try {
+    await ntApi({ action: 'eliminar_candidato', ficha_id: fichaData.ficha.ficha_id, row_num: rowNum });
+    showToast('✓ Candidato eliminado');
+    await recargarFicha();
+  } catch(err) { showToast('Error: ' + err.message); }
 }
 
 async function guardarNotaInglobably() {
