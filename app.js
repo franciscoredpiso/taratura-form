@@ -1583,6 +1583,7 @@ async function ntApi(payload) {
 
 function initNoticias() {
   asesorActual = localStorage.getItem('tz_asesor') || '';
+  restaurarBotonVolver();
   // Siempre arrancar sin ficha seleccionada
   fichaData = null;
   document.querySelectorAll('.noticia-card').forEach(c => c.classList.remove('card-sel'));
@@ -1781,6 +1782,7 @@ function renderLista() {
 async function abrirFichaNoticia(idx) {
   const n = noticias[idx];
   if (!n) return;
+  restaurarBotonVolver();
   document.querySelectorAll('.noticia-card').forEach(c => c.classList.remove('card-sel'));
   const card = document.getElementById('nt-card-' + idx);
   if (card) card.classList.add('card-sel');
@@ -2098,9 +2100,16 @@ function renderCandidatos(candidatos) {
   const activos  = candidatosActuales.filter(c => c.estado !== 'Descartado' && c.estado !== 'No existe');
   const estadoIcon = { 'Pendiente': '🕐', 'Suena / sin respuesta': '📵', 'Suena / no relacionado': '🔇',
                        'No existe': '❌', 'Descartado': '❌', 'Confirmado propietario': '✅' };
-  const primeros = candidatosActuales.slice(0, 3);
-  const html = primeros.map(c => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f1f5f9">
+  let ordenados = candidatosActuales;
+  if (ntHighlightCandRow != null) {
+    const hi = ordenados.find(c => String(c.row_num) === String(ntHighlightCandRow));
+    if (hi) ordenados = [hi, ...ordenados.filter(c => c !== hi)];
+  }
+  const primeros = ordenados.slice(0, 3);
+  const html = primeros.map(c => {
+    const esHi = ntHighlightCandRow != null && String(c.row_num) === String(ntHighlightCandRow);
+    return `
+    <div id="cand-summary-${c.row_num}" class="${esHi ? 'nt-highlight-flash' : ''}" style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f1f5f9">
       <div>
         <div style="font-weight:600;font-size:13px">${c.nombre || '—'}</div>
         <div style="font-size:12px;color:#64748b">${c.telefono || 'Sin tel.'}${c.parentesco ? ' · ' + c.parentesco : ''}</div>
@@ -2109,7 +2118,8 @@ function renderCandidatos(candidatos) {
         <span style="font-size:12px">${estadoIcon[c.estado] || '🕐'}</span>
         <button class="btn-sm" onclick="abrirLlamadaDesdePanel(${c.row_num})">Llamar</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   const verTodos = total > 3
     ? `<button class="btn-link" style="margin-top:8px;width:100%;text-align:center" onclick="abrirPanelCandidatos()">Ver todos (${total}) →</button>`
     : (total > 0 ? `<button class="btn-link" style="margin-top:8px;width:100%;text-align:center" onclick="abrirPanelCandidatos()">Ver todos →</button>` : '');
@@ -2158,7 +2168,7 @@ function renderCandidatosPanel() {
         <span class="cand-estado">${estadoIcon[c.estado] || '🕐'} ${c.estado || 'Pendiente'}</span>
         <div style="display:flex;gap:6px">
           <button class="btn-sm" onclick="abrirLlamadaDesdePanel(${c.row_num})">Registrar llamada</button>
-          <button class="btn-sm" onclick="abrirEditarCandidato(${c.row_num})">Editar</button>
+          <button class="btn-sm" onclick="ntCloseModal('candidatosPanel');abrirEditarCandidato(${c.row_num})">Editar</button>
           <button class="btn-sm" style="background:#fee2e2;border-color:#fca5a5;color:#b91c1c" onclick="eliminarCandidatoLlamar(${c.row_num})">Borrar</button>
         </div>
       </div>
@@ -2331,6 +2341,7 @@ async function migrarSospechosos() {
 }
 
 function volverLista() {
+  restaurarBotonVolver();
   fichaData = null;
   document.querySelectorAll('.noticia-card').forEach(c => c.classList.remove('card-sel'));
   document.getElementById('screenFicha').classList.remove('ficha-abierta');
@@ -5290,7 +5301,8 @@ async function tzVerFicha(fichaId) {
 
 // ── Abrir una tarea directamente desde su tarjeta ─
 // General → modal de edición de tareas. Noticia (ficha o candidato) →
-// abre la ficha completa y, encima, el modal de gestión correspondiente.
+// abre la ficha completa (con toda la info del piso/candidatos) y resalta
+// la sección correspondiente, en vez de tapar todo con un modal.
 async function tzAbrirTarea(id, tipo) {
     if (tipo === 'General') { tzEditarTarea(id); return; }
     const t = tzTareasNoticias.find(x => x.id === id);
@@ -5301,12 +5313,58 @@ async function tzAbrirTarea(id, tipo) {
     } catch (e) { return; }
     const idx = noticias.findIndex(n => n.ficha_id === t.ficha_id);
     if (idx === -1) { showToast('No se encontró la ficha'); return; }
+    ntTareaHighlight = id.startsWith('CAND-') ? { tipo: 'candidato', rowNum: t.row_num } : { tipo: 'ficha' };
     await abrirFichaNoticia(idx);
-    if (id.startsWith('CAND-')) {
-        abrirLlamada(t.row_num);
-    } else {
-        abrirModalTarea();
-    }
+    marcarVueltaATareas();
+    resaltarTarea();
+}
+
+// ── Volver a Tareas / resaltar la tarea que trajo al asesor hasta acá ──
+let ntVieneDeTareas  = false;
+let ntTareaHighlight = null;
+let ntHighlightCandRow = null;
+
+function marcarVueltaATareas() {
+    ntVieneDeTareas = true;
+    const btn = document.getElementById('fichaBackBtn');
+    if (!btn) return;
+    btn.textContent = '← Volver a Tareas';
+    btn.onclick = volverATareasDesdeFicha;
+}
+
+function restaurarBotonVolver() {
+    ntVieneDeTareas = false;
+    const btn = document.getElementById('fichaBackBtn');
+    if (!btn) return;
+    btn.textContent = '← Mis noticias';
+    btn.onclick = volverLista;
+}
+
+function volverATareasDesdeFicha() {
+    ntVieneDeTareas = false;
+    showScreen('tareas');
+}
+
+function resaltarTarea() {
+    if (!ntTareaHighlight) return;
+    const target = ntTareaHighlight;
+    ntTareaHighlight = null;
+    setTimeout(() => {
+        if (target.tipo === 'ficha') {
+            const box     = document.getElementById('proximaAccionBox');
+            const section = box ? box.closest('.nt-section') : null;
+            if (!section) return;
+            section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            section.classList.add('nt-highlight-flash');
+            setTimeout(() => section.classList.remove('nt-highlight-flash'), 2800);
+        } else if (target.tipo === 'candidato') {
+            ntHighlightCandRow = target.rowNum;
+            renderCandidatos(candidatosActuales);
+            const el = document.getElementById('cand-summary-' + target.rowNum);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => { ntHighlightCandRow = null; }, 2800);
+        }
+    }, 150);
 }
 
 // ── Acciones ──────────────────────────────────
