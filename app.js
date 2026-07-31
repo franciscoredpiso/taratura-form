@@ -2210,15 +2210,22 @@ function onTareaTipoChange() {
 function ntSetPrio(p) { ntPrioTarea = p; tzActualizarPrioPicker('ntPo', p); }
 
 let tareaModo = 'reprogramar';
+let tareaOriginal = { tipo: 'Llamada', texto: '', prioridad: 'Media', fecha: '' };
 function tareaBtnLabel(m) {
-  return m === 'cerrar' ? 'Cerrar tarea' : m === 'cerrar_nueva' ? 'Cerrar y crear nueva' : 'Guardar tarea';
+  return m === 'cerrar'       ? 'Cerrar tarea' :
+         m === 'cerrar_nueva' ? 'Cerrar y continuar →' :
+         m === 'nueva'        ? 'Crear tarea' :
+                                 'Guardar tarea';
 }
 function tareaSetModo(m) {
   tareaModo = m;
   document.getElementById('tareaModoReprogramar').className  = 'tz-prio-opt' + (m === 'reprogramar'  ? ' tz-sel-media' : ' tz-unsel');
   document.getElementById('tareaModoCerrar').className        = 'tz-prio-opt' + (m === 'cerrar'        ? ' tz-sel-baja'  : ' tz-unsel');
   document.getElementById('tareaModoCerrarNueva').className   = 'tz-prio-opt' + (m === 'cerrar_nueva'   ? ' tz-sel-azul'  : ' tz-unsel');
-  const mostrarCampos = m !== 'cerrar';
+  // En el picker, "Cerrar y crear nueva" es paso 1 de 2: solo pide qué pasó
+  // con la tarea vieja. Los campos de la tarea nueva recién aparecen en
+  // pasarANuevaTarea(), una vez cerrada la anterior.
+  const mostrarCampos = m === 'reprogramar';
   document.getElementById('tareaAccionWrap').style.display   = mostrarCampos ? '' : 'none';
   document.getElementById('tareaUrgenciaWrap').style.display = mostrarCampos ? '' : 'none';
   document.getElementById('tareaFechaWrap').style.display    = mostrarCampos ? '' : 'none';
@@ -2227,21 +2234,60 @@ function tareaSetModo(m) {
     m === 'cerrar_nueva' ? '¿Qué pasó con la tarea anterior? (opcional)' :
                             'Descripción (opcional)';
   document.getElementById('btnGuardarTarea').textContent     = tareaBtnLabel(m);
+  if (m === 'reprogramar') {
+    document.getElementById('tareaTipoAccion').value   = tareaOriginal.tipo;
+    document.getElementById('tareaAccion').value       = tareaOriginal.texto;
+    document.getElementById('tareaAccion').placeholder = TIPO_PLACEHOLDER[tareaOriginal.tipo] || 'Detalle…';
+    document.getElementById('tareaFecha').value        = tareaOriginal.fecha;
+    ntPrioTarea = tareaOriginal.prioridad;
+    tzActualizarPrioPicker('ntPo', ntPrioTarea);
+  }
+}
+
+// Paso 2 de "Cerrar y crear nueva": la anterior ya se cerró en el servidor,
+// ahora se pide la tarea nueva desde cero (sin el picker, ya no hay nada que
+// reprogramar ni cerrar).
+function pasarANuevaTarea() {
+  tareaModo = 'nueva';
+  document.getElementById('tareaModoWrap').style.display     = 'none';
+  document.getElementById('tareaAccionWrap').style.display   = '';
+  document.getElementById('tareaUrgenciaWrap').style.display = '';
+  document.getElementById('tareaFechaWrap').style.display    = '';
+  document.getElementById('tareaTipoAccion').value   = 'Llamada';
+  document.getElementById('tareaAccion').value       = '';
+  document.getElementById('tareaAccion').placeholder = TIPO_PLACEHOLDER['Llamada'];
+  ntPrioTarea = 'Media';
+  tzActualizarPrioPicker('ntPo', 'Media');
+  document.getElementById('tareaFecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('tareaDesc').value  = '';
+  document.getElementById('tareaDescLabel').textContent = 'Descripción (opcional)';
+  const title = document.getElementById('tareaModalTitle');
+  if (title) title.textContent = 'Nueva tarea';
+  document.getElementById('btnGuardarTarea').textContent = tareaBtnLabel('nueva');
 }
 
 function abrirModalTarea() {
   const ficha = fichaData?.ficha;
   if (!ficha) return;
+  const title = document.getElementById('tareaModalTitle');
+  if (title) title.textContent = 'Tarea';
   const tieneTarea = !!(ficha.proxima_accion && ficha.proxima_accion.trim());
   const { tipo, texto, prioridad } = parseProximaAccion(ficha.proxima_accion);
-  document.getElementById('tareaTipoAccion').value   = tipo || 'Llamada';
-  document.getElementById('tareaAccion').placeholder = TIPO_PLACEHOLDER[tipo || 'Llamada'] || 'Detalle…';
-  document.getElementById('tareaAccion').value       = tieneTarea ? texto : '';
-  ntPrioTarea = tieneTarea ? prioridad : 'Media';
-  tzActualizarPrioPicker('ntPo', ntPrioTarea);
-  document.getElementById('tareaFecha').value  = tieneTarea && ficha.fecha_proxima_accion
+  const fecha = tieneTarea && ficha.fecha_proxima_accion
     ? new Date(ficha.fecha_proxima_accion).toISOString().split('T')[0]
     : new Date().toISOString().split('T')[0];
+  tareaOriginal = {
+    tipo:      tipo || 'Llamada',
+    texto:     tieneTarea ? texto : '',
+    prioridad: tieneTarea ? prioridad : 'Media',
+    fecha
+  };
+  document.getElementById('tareaTipoAccion').value   = tareaOriginal.tipo;
+  document.getElementById('tareaAccion').placeholder = TIPO_PLACEHOLDER[tareaOriginal.tipo] || 'Detalle…';
+  document.getElementById('tareaAccion').value       = tareaOriginal.texto;
+  ntPrioTarea = tareaOriginal.prioridad;
+  tzActualizarPrioPicker('ntPo', ntPrioTarea);
+  document.getElementById('tareaFecha').value = tareaOriginal.fecha;
   document.getElementById('tareaDesc').value = '';
   document.getElementById('tareaModoWrap').style.display = tieneTarea ? '' : 'none';
   tareaSetModo('reprogramar');
@@ -2251,7 +2297,27 @@ function abrirModalTarea() {
 async function guardarTarea() {
   const desc = document.getElementById('tareaDesc').value.trim();
   const btn  = document.getElementById('btnGuardarTarea');
-  btn.disabled = true; btn.textContent = tareaModo === 'reprogramar' ? 'Guardando…' : 'Cerrando…';
+
+  // Paso 1 de "Cerrar y crear nueva": cierra la tarea anterior y deja el
+  // modal abierto, transformado en un formulario en blanco para la nueva.
+  if (tareaModo === 'cerrar_nueva') {
+    btn.disabled = true; btn.textContent = 'Cerrando…';
+    try {
+      await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: fichaData.ficha.ficha_id,
+                    proxima_accion: '', fecha_proxima_accion: '' });
+      if (desc) {
+        await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
+                      autor: asesorActual, nota: `Tarea cerrada: ${desc}` });
+      }
+      await recargarFicha();
+      showToast('✓ Tarea anterior cerrada — completá la nueva');
+      pasarANuevaTarea();
+    } catch(err) { showToast('Error: ' + err.message); }
+    finally { btn.disabled = false; }
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = tareaModo === 'cerrar' ? 'Cerrando…' : 'Guardando…';
   try {
     if (tareaModo === 'cerrar') {
       await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: fichaData.ficha.ficha_id,
@@ -2267,23 +2333,19 @@ async function guardarTarea() {
       const accion = document.getElementById('tareaAccion').value.trim();
       const fecha  = document.getElementById('tareaFecha').value;
       if (!accion) {
-        showToast(tareaModo === 'cerrar_nueva' ? 'Escribí qué hay que hacer en la nueva tarea' : 'Escribí qué hay que hacer en la tarea');
+        showToast('Escribí qué hay que hacer en la tarea');
         btn.disabled = false; btn.textContent = tareaBtnLabel(tareaModo);
         return;
-      }
-      if (tareaModo === 'cerrar_nueva' && desc) {
-        await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
-                      autor: asesorActual, nota: `Tarea cerrada: ${desc}` });
       }
       const proximaAccion = buildProximaAccionTexto(tipo, accion, ntPrioTarea);
       await ntApi({ action: 'actualizar_ficha_noticia', ficha_id: fichaData.ficha.ficha_id,
                     proxima_accion: proximaAccion, fecha_proxima_accion: fecha });
-      if (tareaModo === 'reprogramar' && desc) {
+      if (desc) {
         await ntApi({ action: 'agregar_seguimiento', fichaId: fichaData.ficha.ficha_id,
                       autor: asesorActual, nota: `Tarea: ${accion}${desc ? ' — ' + desc : ''}` });
       }
       ntCloseModal('tarea');
-      showToast(tareaModo === 'cerrar_nueva' ? '✓ Tarea cerrada y nueva creada' : '✓ Tarea guardada');
+      showToast(tareaModo === 'nueva' ? '✓ Tarea creada' : '✓ Tarea guardada');
     }
     await recargarFicha();
   } catch(err) { showToast('Error: ' + err.message); }
