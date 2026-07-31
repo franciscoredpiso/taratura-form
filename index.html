@@ -332,6 +332,8 @@
 @keyframes fadeIn   { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ntSlideInR { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes pulseRing { 0%,100% { box-shadow: 0 0 0 0 rgba(29,78,216,.15); } 50% { box-shadow: 0 0 0 6px rgba(29,78,216,0); } }
+@keyframes ntHighlightPulse { 0%,100% { background: transparent; } 50% { background: #fef3c7; } }
+.nt-highlight-flash { animation: ntHighlightPulse 1.4s ease-in-out 2; border-radius: 8px; }
 
 /* ── LAYOUT DESKTOP ── */
 @media (min-width: 800px) {
@@ -683,7 +685,7 @@
   </div>
   <div id="fichaContent" style="display:none">
   <div class="nt-ficha-header">
-    <button class="nt-back-btn" onclick="volverLista()">← Mis noticias</button>
+    <button class="nt-back-btn" id="fichaBackBtn" onclick="volverLista()">← Mis noticias</button>
     <div class="ficha-title-row">
       <div class="ficha-addr" id="fichaAddr">—</div>
       <div class="ficha-date" id="fichaDate">—</div>
